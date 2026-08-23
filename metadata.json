@@ -1,0 +1,8 @@
+{
+  "name": "IDS Next Fortune Hotel PMS Trainer",
+  "description": "An interactive training platform and simulator for hotel management students replicating IDS Next Fortune PMS, built with React and Tailwind CSS.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

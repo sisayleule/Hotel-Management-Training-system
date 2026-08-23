@@ -1,0 +1,22 @@
+{
+  "name": "Fortune Next — Hotel Training",
+  "short_name": "HotelPMS",
+  "description": "AMOB University — Hotel Management PMS Training System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f0e8",
+  "theme_color": "#6b7355",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=192&q=80",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=512&q=80",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
