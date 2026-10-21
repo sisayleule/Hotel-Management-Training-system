@@ -319,6 +319,82 @@ export const useHotelStore = create(
     });
   },
 
+  /**
+   * performCheckIn — the ONE action used by the dedicated Check-In module.
+   *
+   * 1. Resolves the assigned room via getAssignedRoom.
+   * 2. Validates the room is actually in "reservation" status for this reservation.
+   * 3. Writes to Supabase FIRST; only updates local state on success.
+   * 4. Sets EXACTLY that room to Occupied. No other room is touched.
+   *
+   * Returns { success: true, roomNo } or { success: false, error: string }.
+   */
+  performCheckIn: async (reservationNo) => {
+    const state = get();
+    const reservation = state.reservations.find(r => r.reservation_no === reservationNo);
+
+    if (!reservation) {
+      return { success: false, error: `Reservation ${reservationNo} not found.` };
+    }
+    if (reservation.status === "checked_in") {
+      return { success: false, error: `${reservationNo} is already checked in.` };
+    }
+    if (reservation.status === "checked_out") {
+      return { success: false, error: `${reservationNo} has already checked out.` };
+    }
+    if (reservation.status === "cancelled") {
+      return { success: false, error: `${reservationNo} is cancelled and cannot be checked in.` };
+    }
+
+    // Resolve the assigned room using the shared helper
+    const roomNo = getAssignedRoom(reservation, state.rooms);
+    if (!roomNo) {
+      return { success: false, error: "No room assigned. Please assign a room before checking in." };
+    }
+
+    // Validate the room is in the correct state for this reservation
+    const room = state.rooms.find(r => r.room_no === roomNo);
+    if (!room) {
+      return { success: false, error: `Room ${roomNo} not found in the system.` };
+    }
+    if (room.status !== "reservation") {
+      return {
+        success: false,
+        error: `Room ${roomNo} is currently "${room.status}" — it must be in "reservation" status. Please re-assign the room.`
+      };
+    }
+
+    // Write to Supabase first; do NOT change local state until confirmed
+    const { error: supabaseError } = await svcCheckIn(reservationNo, roomNo, null);
+    if (supabaseError) {
+      console.error("[performCheckIn] Supabase write failed:", supabaseError.message);
+      return { success: false, error: `Supabase write failed: ${supabaseError.message}` };
+    }
+
+    // Supabase succeeded — now update local store
+    const guestName = reservation.guest_name;
+    set((s) => ({
+      reservations: s.reservations.map((res) =>
+        res.reservation_no === reservationNo
+          ? { ...res, status: "checked_in", rooms_assigned: [roomNo] }
+          : res
+      ),
+      rooms: s.rooms.map((r) => {
+        // Clear any OTHER room linked to this reservation (safety)
+        if (r.reservation_no === reservationNo && r.room_no !== roomNo) {
+          return { ...r, status: "vacant_clean", guest_name: "", reservation_no: "" };
+        }
+        // Set the exact assigned room to Occupied
+        if (r.room_no === roomNo) {
+          return { ...r, status: "occupied", guest_name: guestName, reservation_no: reservationNo };
+        }
+        return r;
+      })
+    }));
+
+    return { success: true, roomNo };
+  },
+
   checkInGuest: (reservationNo, roomNo) => {
     // Optimistic local update
     set((state) => {

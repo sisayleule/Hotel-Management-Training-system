@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useHotelStore, getAssignedRoom } from "../store/useHotelStore.js";
+import { useHotelStore } from "../store/useHotelStore.js";
 import PageWrapper from "../components/layout/PageWrapper.jsx";
 import { RateGrid } from "../components/reservations/RateGrid.jsx";
 import { GuestTable } from "../components/reservations/GuestTable.jsx";
@@ -40,9 +40,7 @@ export const DetailedReservation = () => {
   const reservations = useHotelStore((state) => state.reservations);
   const updateReservation = useHotelStore((state) => state.updateReservation);
   const cancelReservation = useHotelStore((state) => state.cancelReservation);
-  const checkInGuest = useHotelStore((state) => state.checkInGuest);
   const checkOutGuest = useHotelStore((state) => state.checkOutGuest);
-  const rooms = useHotelStore((state) => state.rooms);
 
   // Find targeted reservation
   const reservation = useMemo(() => {
@@ -141,16 +139,8 @@ export const DetailedReservation = () => {
 
   // Action flow workflow buttons
   const handleCheckInWorkflow = () => {
-    // Use the single shared helper: rooms_assigned[0] first, then room.reservation_no fallback
-    const assignedRoomNo = getAssignedRoom(reservation, rooms);
-    if (!assignedRoomNo) {
-      toast.error("Please assign a Room Number before completing Check-in.");
-      navigate(`/app/reservations/assign?id=${resvNo}`);
-      return;
-    }
-    checkInGuest(resvNo, assignedRoomNo);
-    toast.success(`Guest checked-in to Room ${assignedRoomNo} ✓`);
-    navigate("/app/reservations");
+    // Delegate entirely to the dedicated Check-In module
+    navigate(`/app/checkin?id=${resvNo}`);
   };
 
   const handleCheckOutWorkflow = () => {
@@ -695,7 +685,7 @@ export const DetailedReservation = () => {
               </button>
               <button
                 id="assign-room-workflow-btn"
-                onClick={() => navigate(`/reservations/assign?id=${resvNo}`)}
+                onClick={() => navigate(`/app/reservations/assign?id=${resvNo}`)}
                 className="px-4 py-2 bg-ids-sidebar hover:bg-ids-sidebar-hover text-white font-black uppercase text-[11px] rounded tracking-wider flex items-center space-x-1.5 transition-colors cursor-pointer"
               >
                 <Home className="w-4 h-4 text-yellow-400" />
