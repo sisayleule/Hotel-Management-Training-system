@@ -80,9 +80,6 @@ export const PERMISSIONS = {
   ROOMS_CHANGE_STATUS: "rooms.change_status",
   ROOMS_CONFIGURE: "rooms.configure",
   
-  // Front Office — limited room status action: checkout triggers auto-dirty only
-  ROOMS_CHECKOUT_ONLY: "rooms.checkout_only",
-  
   // Check-in/Check-out
   CHECKIN_PERFORM: "checkin.perform",
   CHECKOUT_PERFORM: "checkout.perform",
@@ -133,10 +130,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.CHECKIN_PERFORM,
     PERMISSIONS.CHECKOUT_PERFORM,
     PERMISSIONS.ROOMS_VIEW,
-    // Front Office may only trigger checkout on an occupied room.
-    // The room status change to "dirty" happens automatically via checkOutGuest.
-    // All other room status changes (clean, OOO, dirty, etc.) are Housekeeping-only.
-    PERMISSIONS.ROOMS_CHECKOUT_ONLY,
+    PERMISSIONS.ROOMS_CHANGE_STATUS,
     PERMISSIONS.GUESTS_VIEW,
     PERMISSIONS.GUESTS_EDIT,
     PERMISSIONS.BILLING_POST_CHARGES,
@@ -175,6 +169,7 @@ export const NAV_CONFIG = {
       { path: "/app/reservations/amend", label: "Amend Booking", icon: "FileEdit" },
       { path: "/app/reservations/cancel", label: "Cancel Booking", icon: "Ban" },
       { path: "/app/reservations/assign", label: "Assign Room", icon: "UserCheck" },
+      { path: "/app/checkin", label: "Check In", icon: "LogIn" },
       { path: "/app/cashiering", label: "Cashiering", icon: "Wallet" },
       { path: "/app/housekeeping", label: "Housekeeping", icon: "Sparkles" },
       { path: "/app/reports", label: "Reports", icon: "BarChart3" },
@@ -191,6 +186,7 @@ export const NAV_CONFIG = {
       { path: "/app/reservations/amend", label: "Amend Booking", icon: "FileEdit" },
       { path: "/app/reservations/cancel", label: "Cancel Booking", icon: "Ban" },
       { path: "/app/reservations/assign", label: "Assign Room", icon: "UserCheck" },
+      { path: "/app/checkin", label: "Check In", icon: "LogIn" },
       { path: "/app/cashiering", label: "Cashiering", icon: "Wallet" },
       { path: "/app/settings", label: "Settings", icon: "Settings" }
     ]
@@ -207,9 +203,9 @@ export const NAV_CONFIG = {
   },
   
   waiter_fnb: {
-    defaultDashboard: "/app/waiter",
+    defaultDashboard: "/waiter",
     navItems: [
-      { path: "/app/waiter", label: "F&B Orders", icon: "Coffee" },
+      { path: "/waiter", label: "F&B Orders", icon: "Coffee" },
       { path: "/app/settings", label: "Settings", icon: "Settings" }
     ]
   }

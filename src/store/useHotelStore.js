@@ -6,6 +6,39 @@ import companiesData from "../data/companies.js";
 import guestsData from "../data/guests.js";
 import reservationsData from "../data/reservations.js";
 import { supabase } from "../lib/supabaseClient.js";
+import {
+  assignRoomToReservation as svcAssignRoom,
+  releaseRoomFromReservation as svcReleaseRoom,
+  checkInReservation as svcCheckIn,
+} from "../services/reservationService.js";
+
+/**
+ * getAssignedRoom — single source of truth for "which room belongs to this reservation".
+ *
+ * Priority:
+ *  1. reservation.rooms_assigned[0]  — explicitly assigned via Assign Room
+ *  2. the room whose reservation_no matches AND whose status is "reservation"
+ *     (fallback: assignment written to room grid but rooms_assigned not yet saved)
+ *
+ * Returns the room number string, or null if nothing is assigned.
+ *
+ * @param {Object}   reservation  – reservation object from the store
+ * @param {Array}    rooms        – full rooms array from the store
+ * @returns {string|null}
+ */
+export const getAssignedRoom = (reservation, rooms) => {
+  if (!reservation) return null;
+
+  // 1. Prefer the explicit rooms_assigned field
+  const assigned = reservation.rooms_assigned || [];
+  if (assigned.length > 0) return assigned[0];
+
+  // 2. Fall back to a room that is marked "reservation" for this reservation_no
+  const linkedRoom = rooms.find(
+    (r) => r.reservation_no === reservation.reservation_no && r.status === "reservation"
+  );
+  return linkedRoom ? linkedRoom.room_no : null;
+};
 
 export const useHotelStore = create(
   persist(
@@ -54,14 +87,14 @@ export const useHotelStore = create(
     currentUser: { name: username.toUpperCase() || "DEMO USER", role: role || "manager", username: username || "admin" }
   }),
   logout: async () => {
-    try {
-      await supabase.auth.signOut();
-    } finally {
-      // Always end the local session and return to sign-in, even if the
-      // remote sign-out request cannot complete.
-      set({ currentUser: null });
-      window.location.assign('/login');
-    }
+    // Sign out from Supabase
+    await supabase.auth.signOut();
+    
+    // Clear Zustand state
+    set({ currentUser: null });
+    
+    // Redirect to login page
+    window.location.href = '/login';
   },
   setTutorialMode: (val) => set({ tutorialMode: val }),
   updateHotelProfile: (profile) => set((state) => ({ hotelProfile: { ...state.hotelProfile, ...profile } })),
@@ -178,16 +211,16 @@ export const useHotelStore = create(
   })),
 
   cancelReservation: (reservationNo, reason = "") => set((state) => {
+    // Clear room if assigned
+    const res = state.reservations.find(r => r.reservation_no === reservationNo);
+    const assignedRooms = res ? res.rooms_assigned : [];
+
     return {
       reservations: state.reservations.map((res) =>
         res.reservation_no === reservationNo ? { ...res, status: "cancelled", cancellation_reason: reason } : res
       ),
-      // Release any room tied to this reservation regardless of its current status
-      // (covers both "reservation" and "occupied" rooms — the reservation_no on the
-      //  room object is the authoritative link, not rooms_assigned which is often empty
-      //  in seed data and for rooms checked-in via the legacy direct-assign flow).
       rooms: state.rooms.map((room) =>
-        room.reservation_no === reservationNo
+        assignedRooms.includes(room.room_no) && (room.status === "reservation" || room.reservation_no === reservationNo)
           ? { ...room, status: "vacant_clean", guest_name: "", reservation_no: "" }
           : room
       )
@@ -196,26 +229,45 @@ export const useHotelStore = create(
 
   cancelReservationWithReason: () => {}, 
 
-  assignRoomToReservation: (reservationNo, roomNo, guestIndex = 0) => set((state) => {
-    const res = state.reservations.find(r => r.reservation_no === reservationNo);
-    const guestName = res ? res.guest_name : "";
-    return {
-      reservations: state.reservations.map((r) =>
-        r.reservation_no === reservationNo
-          ? { ...r, rooms_assigned: [...new Set([...(r.rooms_assigned || []), roomNo])] }
-          : r
-      ),
-      rooms: state.rooms.map((room) => {
-        if (room.room_no === roomNo) {
-          return { ...room, status: "reservation", guest_name: guestName, reservation_no: reservationNo };
-        }
-        return room;
-      })
-    };
-  }),
+  assignRoomToReservation: (reservationNo, roomNo, guestIndex = 0) => {
+    // Optimistically update local state first so the UI responds immediately
+    set((state) => {
+      const res = state.reservations.find(r => r.reservation_no === reservationNo);
+      const guestName = res ? res.guest_name : "";
+      // If a different room was already assigned, release it back to vacant_clean
+      const previousRooms = res ? (res.rooms_assigned || []) : [];
 
-  releaseRoomFromReservation: (reservationNo, roomNo) => set((state) => {
-    return {
+      return {
+        reservations: state.reservations.map((r) =>
+          r.reservation_no === reservationNo
+            ? { ...r, rooms_assigned: [roomNo] }  // single-room: replace, not append
+            : r
+        ),
+        rooms: state.rooms.map((room) => {
+          // Release any previously assigned room for this reservation
+          if (previousRooms.includes(room.room_no) && room.room_no !== roomNo) {
+            return { ...room, status: "vacant_clean", guest_name: "", reservation_no: "" };
+          }
+          // Mark the new room as reserved
+          if (room.room_no === roomNo) {
+            return { ...room, status: "reservation", guest_name: guestName, reservation_no: reservationNo };
+          }
+          return room;
+        })
+      };
+    });
+
+    // Persist to Supabase asynchronously (fire-and-forget with error log)
+    svcAssignRoom(reservationNo, roomNo, null).then(({ error }) => {
+      if (error) {
+        console.error("[assignRoomToReservation] Supabase sync failed:", error.message);
+      }
+    });
+  },
+
+  releaseRoomFromReservation: (reservationNo, roomNo) => {
+    // Optimistically update local state
+    set((state) => ({
       reservations: state.reservations.map((r) =>
         r.reservation_no === reservationNo
           ? { ...r, rooms_assigned: (r.rooms_assigned || []).filter((no) => no !== roomNo) }
@@ -226,8 +278,15 @@ export const useHotelStore = create(
           ? { ...room, status: "vacant_clean", guest_name: "", reservation_no: "" }
           : room
       )
-    };
-  }),
+    }));
+
+    // Persist release to Supabase
+    svcReleaseRoom(reservationNo, roomNo, null).then(({ error }) => {
+      if (error) {
+        console.error("[releaseRoomFromReservation] Supabase sync failed:", error.message);
+      }
+    });
+  },
 
   getReservationById: (reservationNo) => {
     return get().reservations.find((r) => r.reservation_no === reservationNo);
@@ -260,38 +319,126 @@ export const useHotelStore = create(
     });
   },
 
-  checkInGuest: (reservationNo, roomNo) => set((state) => {
-    const resObj = state.reservations.find(r => r.reservation_no === reservationNo);
-    const guestName = resObj ? resObj.guest_name : "Occupant";
+  /**
+   * performCheckIn — the ONE action used by the dedicated Check-In module.
+   *
+   * 1. Resolves the assigned room via getAssignedRoom.
+   * 2. Validates the room is actually in "reservation" status for this reservation.
+   * 3. Writes to Supabase FIRST; only updates local state on success.
+   * 4. Sets EXACTLY that room to Occupied. No other room is touched.
+   *
+   * Returns { success: true, roomNo } or { success: false, error: string }.
+   */
+  performCheckIn: async (reservationNo) => {
+    const state = get();
+    const reservation = state.reservations.find(r => r.reservation_no === reservationNo);
 
-    return {
-      reservations: state.reservations.map((res) =>
+    if (!reservation) {
+      return { success: false, error: `Reservation ${reservationNo} not found.` };
+    }
+    if (reservation.status === "checked_in") {
+      return { success: false, error: `${reservationNo} is already checked in.` };
+    }
+    if (reservation.status === "checked_out") {
+      return { success: false, error: `${reservationNo} has already checked out.` };
+    }
+    if (reservation.status === "cancelled") {
+      return { success: false, error: `${reservationNo} is cancelled and cannot be checked in.` };
+    }
+
+    // Resolve the assigned room using the shared helper
+    const roomNo = getAssignedRoom(reservation, state.rooms);
+    if (!roomNo) {
+      return { success: false, error: "No room assigned. Please assign a room before checking in." };
+    }
+
+    // Validate the room is in the correct state for this reservation
+    const room = state.rooms.find(r => r.room_no === roomNo);
+    if (!room) {
+      return { success: false, error: `Room ${roomNo} not found in the system.` };
+    }
+    if (room.status !== "reservation") {
+      return {
+        success: false,
+        error: `Room ${roomNo} is currently "${room.status}" — it must be in "reservation" status. Please re-assign the room.`
+      };
+    }
+
+    // Write to Supabase first; do NOT change local state until confirmed
+    const { error: supabaseError } = await svcCheckIn(reservationNo, roomNo, null);
+    if (supabaseError) {
+      console.error("[performCheckIn] Supabase write failed:", supabaseError.message);
+      return { success: false, error: `Supabase write failed: ${supabaseError.message}` };
+    }
+
+    // Supabase succeeded — now update local store
+    const guestName = reservation.guest_name;
+    set((s) => ({
+      reservations: s.reservations.map((res) =>
         res.reservation_no === reservationNo
           ? { ...res, status: "checked_in", rooms_assigned: [roomNo] }
           : res
       ),
-      rooms: state.rooms.map((room) => {
-        // The room already linked to this reservation via reservation_no is the
-        // authoritative target. Flip it straight to occupied — do NOT clear it
-        // back to vacant first (that was the bug: it undid the Assign Room step).
-        if (room.room_no === roomNo) {
-          return { ...room, status: "occupied", guest_name: guestName, reservation_no: reservationNo };
+      rooms: s.rooms.map((r) => {
+        // Clear any OTHER room linked to this reservation (safety)
+        if (r.reservation_no === reservationNo && r.room_no !== roomNo) {
+          return { ...r, status: "vacant_clean", guest_name: "", reservation_no: "" };
         }
-        return room;
+        // Set the exact assigned room to Occupied
+        if (r.room_no === roomNo) {
+          return { ...r, status: "occupied", guest_name: guestName, reservation_no: reservationNo };
+        }
+        return r;
       })
-    };
-  }),
+    }));
+
+    return { success: true, roomNo };
+  },
+
+  checkInGuest: (reservationNo, roomNo) => {
+    // Optimistic local update
+    set((state) => {
+      const resObj = state.reservations.find(r => r.reservation_no === reservationNo);
+      const guestName = resObj ? resObj.guest_name : "Occupant";
+
+      return {
+        reservations: state.reservations.map((res) =>
+          res.reservation_no === reservationNo
+            ? { ...res, status: "checked_in", rooms_assigned: [roomNo] }
+            : res
+        ),
+        rooms: state.rooms.map((room) => {
+          // Clear any room previously linked to this reservation (but not the target room)
+          if (room.reservation_no === reservationNo && room.room_no !== roomNo) {
+            return { ...room, status: "vacant_clean", guest_name: "", reservation_no: "" };
+          }
+          // Mark the exact assigned room as occupied
+          if (room.room_no === roomNo) {
+            return { ...room, status: "occupied", guest_name: guestName, reservation_no: reservationNo };
+          }
+          return room;
+        })
+      };
+    });
+
+    // Persist check-in to Supabase
+    svcCheckIn(reservationNo, roomNo, null).then(({ error }) => {
+      if (error) {
+        console.error("[checkInGuest] Supabase sync failed:", error.message);
+      }
+    });
+  },
 
   checkOutGuest: (reservationNo) => set((state) => {
+    const res = state.reservations.find((r) => r.reservation_no === reservationNo);
+    const assignedRooms = res ? res.rooms_assigned : [];
+
     return {
       reservations: state.reservations.map((resItem) =>
         resItem.reservation_no === reservationNo ? { ...resItem, status: "checked_out" } : resItem
       ),
-      // Use room.reservation_no as the authoritative link — same pattern as
-      // cancelReservation. The rooms_assigned array can be stale or empty,
-      // but room.reservation_no is always set correctly by checkInGuest.
       rooms: state.rooms.map((room) =>
-        room.reservation_no === reservationNo
+        assignedRooms.includes(room.room_no)
           ? { ...room, status: "dirty", guest_name: "", reservation_no: "" }
           : room
       )

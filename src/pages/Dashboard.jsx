@@ -39,23 +39,23 @@ export const Dashboard = () => {
   // Top icon toolbar items
   const toolbarItems = [
     { label: "Front Office", icon: LogIn, path: "/app/checkin" },
-    { label: "Cashiering", icon: Wallet, path: "/app/cashiering" },
-    { label: "Reports", icon: BarChart3, path: "/app/reports" },
-    { label: "Housekeeping", icon: Sparkles, path: "/app/housekeeping" },
-    { label: "Reservations", icon: Calendar, path: "/app/reservations" },
+    { label: "Cashiering", icon: Wallet, path: "/cashiering" },
+    { label: "Reports", icon: BarChart3, path: "/reports" },
+    { label: "Housekeeping", icon: Sparkles, path: "/housekeeping" },
+    { label: "Reservations", icon: Calendar, path: "/reservations" },
     { label: "Phone", icon: Phone, action: () => toast.success("PBX Link Status: Active") },
     { label: "Revenue", icon: DollarSign, action: () => toast.info("Revenue management module: Phase 3 Upgrade") },
     { label: "Packages", icon: Package, action: () => toast.info("Package Plans & Rates Grid is Active") },
     { label: "Restaurant", icon: Utensils, action: () => toast.info("POS Restaurant module: Available at F&B outlet") },
     { label: "Laundry", icon: Shirt, action: () => toast.info("Linen & Guest Laundry Tracker is active") },
-    { label: "Settings", icon: Settings, path: "/app/settings" }
+    { label: "Settings", icon: Settings, path: "/settings" }
   ];
 
   // Left menu items
   const menuItems = [
     { name: "Registrations..", path: "/app/checkin", desc: "Manage guest registration cards and check-ins" },
-    { name: "Reservations..", path: "/app/reservations", desc: "Create, search, or cancel bookings" },
-    { name: "Cashiering..", path: "/app/cashiering", desc: "Settle bills, post transactions, print folios" },
+    { name: "Reservations..", path: "/reservations", desc: "Create, search, or cancel bookings" },
+    { name: "Cashiering..", path: "/cashiering", desc: "Settle bills, post transactions, print folios" },
     {
       name: "Day End process..",
       action: () => {
@@ -64,12 +64,12 @@ export const Dashboard = () => {
       },
       desc: "Run Night Audit and advance system date"
     },
-    { name: "Guest History..", path: "/app/settings", desc: "Review historic guest listings" },
-    { name: "House Keeping..", path: "/app/housekeeping", desc: "Update room clean/dirty states" },
-    { name: "Reports..", path: "/app/reports", desc: "General manager and night audit reports" },
-    { name: "Lookups..", path: "/app/rooms", desc: "Examine physical room status charts" },
+    { name: "Guest History..", path: "/settings", desc: "Review historic guest listings" },
+    { name: "House Keeping..", path: "/housekeeping", desc: "Update room clean/dirty states" },
+    { name: "Reports..", path: "/reports", desc: "General manager and night audit reports" },
+    { name: "Lookups..", path: "/rooms", desc: "Examine physical room status charts" },
     { name: "SMS Setup..", action: () => toast.success("EthioTelecom SMS Gateway connection: Ok"), desc: "Automatic booking confirmations" },
-    { name: "Setup..", path: "/app/settings", desc: "General hotel configuration and rates" }
+    { name: "Setup..", path: "/settings", desc: "General hotel configuration and rates" }
   ];
 
   const runDayEnd = () => {
@@ -87,7 +87,7 @@ export const Dashboard = () => {
       {/* IDS Next Header Row */}
       <div id="ids-header-row" className="bg-ids-header text-white flex items-center justify-between px-4 py-2 border border-ids-border text-xs font-mono select-none shadow-sm rounded-t mb-4">
         <div>
-          BS/GN V[6.5] &nbsp;&nbsp; SP V[1] &nbsp;&nbsp; USER: <span className="font-bold text-yellow-300">{currentUser?.full_name || currentUser?.name || "USER"}</span>
+          BS/GN V[6.5] &nbsp;&nbsp; SP V[1] &nbsp;&nbsp; USER: <span className="font-bold text-yellow-300">{currentUser?.name || "IT ADMIN"}</span>
         </div>
         <div className="hidden sm:block font-bold">
           AMOB UNIVERSITY FORTUNE TRAINING HOTEL

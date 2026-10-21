@@ -192,6 +192,7 @@ export const cancelReservation = async (reservationNo, reason, userId) => {
 
 /**
  * Assign a room number to a reservation.
+ * Replaces (not appends) to keep a single assigned room.
  *
  * @param {string} reservationNo
  * @param {string} roomNo
@@ -199,7 +200,23 @@ export const cancelReservation = async (reservationNo, reason, userId) => {
  * @returns {{ data: Object|null, error: Error|null }}
  */
 export const assignRoomToReservation = async (reservationNo, roomNo, userId) => {
-  // First read current rooms_assigned so we can append without overwriting
+  return updateReservation(reservationNo, { rooms_assigned: [roomNo] }, userId);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RELEASE ROOM
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Remove a specific room from a reservation's rooms_assigned array.
+ *
+ * @param {string} reservationNo
+ * @param {string} roomNo
+ * @param {string} userId
+ * @returns {{ data: Object|null, error: Error|null }}
+ */
+export const releaseRoomFromReservation = async (reservationNo, roomNo, userId) => {
+  // Read current assignment first
   const { data: current, error: fetchError } = await supabase
     .from('reservations')
     .select('rooms_assigned')
@@ -208,9 +225,7 @@ export const assignRoomToReservation = async (reservationNo, roomNo, userId) => 
 
   if (fetchError) return { data: null, error: fetchError };
 
-  const existing = current.rooms_assigned ?? [];
-  const updated  = [...new Set([...existing, roomNo])];
-
+  const updated = (current.rooms_assigned ?? []).filter((no) => no !== roomNo);
   return updateReservation(reservationNo, { rooms_assigned: updated }, userId);
 };
 
