@@ -10,6 +10,7 @@ import {
   assignRoomToReservation as svcAssignRoom,
   releaseRoomFromReservation as svcReleaseRoom,
   checkInReservation as svcCheckIn,
+  checkOutReservation as svcCheckOut,
 } from "../services/reservationService.js";
 
 /**
@@ -393,6 +394,73 @@ export const useHotelStore = create(
     }));
 
     return { success: true, roomNo };
+  },
+
+  /**
+   * performCheckOut — the ONE action used by the dedicated Check-Out module.
+   *
+   * 1. Resolves the occupied room via getAssignedRoom (rooms_assigned[0] first,
+   *    then room whose reservation_no matches and status === 'occupied').
+   * 2. Writes status = 'checked_out' to Supabase FIRST.
+   * 3. Only updates local state on Supabase success.
+   * 4. Sets EXACTLY that room to Dirty and clears guest_name/reservation_no.
+   *    No other room is touched.
+   * 5. Returns { success: true, roomNo } or { success: false, error: string }.
+   */
+  performCheckOut: async (reservationNo) => {
+    const state = get();
+    const reservation = state.reservations.find(r => r.reservation_no === reservationNo);
+
+    if (!reservation) {
+      return { success: false, error: `Reservation ${reservationNo} not found.` };
+    }
+    if (reservation.status !== "checked_in") {
+      const msg = {
+        confirmed:    "This reservation has not checked in yet.",
+        checked_out:  "This reservation has already checked out.",
+        cancelled:    "This reservation is cancelled.",
+      }[reservation.status] || `Cannot check out a reservation with status "${reservation.status}".`;
+      return { success: false, error: msg };
+    }
+
+    // Resolve the occupied room — use getAssignedRoom first, then fall back to
+    // room with status 'occupied' linked by reservation_no
+    let roomNo = getAssignedRoom(reservation, state.rooms);
+    if (!roomNo) {
+      const occupiedRoom = state.rooms.find(
+        r => r.reservation_no === reservationNo && r.status === "occupied"
+      );
+      roomNo = occupiedRoom ? occupiedRoom.room_no : null;
+    }
+
+    // Write to Supabase first
+    const { error: supabaseError } = await svcCheckOut(reservationNo, null);
+    if (supabaseError) {
+      console.error("[performCheckOut] Supabase write failed:", supabaseError.message);
+      return { success: false, error: `Supabase write failed: ${supabaseError.message}` };
+    }
+
+    // Supabase succeeded — update local store
+    set((s) => ({
+      reservations: s.reservations.map((res) =>
+        res.reservation_no === reservationNo
+          ? { ...res, status: "checked_out" }
+          : res
+      ),
+      rooms: s.rooms.map((room) => {
+        // Dirty the exact assigned/occupied room
+        if (roomNo && room.room_no === roomNo) {
+          return { ...room, status: "dirty", guest_name: "", reservation_no: "" };
+        }
+        // Safety: also clear any other room still linked to this reservation
+        if (room.reservation_no === reservationNo) {
+          return { ...room, status: "dirty", guest_name: "", reservation_no: "" };
+        }
+        return room;
+      })
+    }));
+
+    return { success: true, roomNo: roomNo || "unknown" };
   },
 
   checkInGuest: (reservationNo, roomNo) => {

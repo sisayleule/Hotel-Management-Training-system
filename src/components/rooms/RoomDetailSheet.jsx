@@ -223,12 +223,17 @@ export const RoomDetailSheet = ({ isOpen, onClose, room }) => {
       case "occupied":
         return (
           <>
-            {/* Check Out Guest */}
+            {/* Check Out Guest — delegates to dedicated Check-Out module */}
             <button
               id="action-checkout"
               onClick={() =>
                 triggerAction("checkout", null, "", () => {
-                  navigate(`/app/checkout?roomNo=${room.room_no}&reservationNo=${room.reservation_no || ""}`);
+                  if (room.reservation_no) {
+                    navigate(`/app/checkout?id=${room.reservation_no}`);
+                  } else {
+                    toast.error("No reservation linked to this room. Please locate the reservation manually in Check-Out.");
+                    navigate("/app/checkout");
+                  }
                 })
               }
               className="w-full h-12 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
