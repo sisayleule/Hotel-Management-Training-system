@@ -40,7 +40,6 @@ export const DetailedReservation = () => {
   const reservations = useHotelStore((state) => state.reservations);
   const updateReservation = useHotelStore((state) => state.updateReservation);
   const cancelReservation = useHotelStore((state) => state.cancelReservation);
-  const checkOutGuest = useHotelStore((state) => state.checkOutGuest);
 
   // Find targeted reservation
   const reservation = useMemo(() => {
@@ -144,9 +143,8 @@ export const DetailedReservation = () => {
   };
 
   const handleCheckOutWorkflow = () => {
-    checkOutGuest(resvNo);
-    toast.success(`Guest successfully checked-out. Room set to DIRTY.`);
-    navigate("/app/reservations");
+    // Delegate entirely to the dedicated Check-Out module
+    navigate(`/app/checkout?id=${resvNo}`);
   };
 
   const handleCancelWorkflow = () => {

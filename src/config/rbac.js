@@ -170,6 +170,7 @@ export const NAV_CONFIG = {
       { path: "/app/reservations/cancel", label: "Cancel Booking", icon: "Ban" },
       { path: "/app/reservations/assign", label: "Assign Room", icon: "UserCheck" },
       { path: "/app/checkin", label: "Check In", icon: "LogIn" },
+      { path: "/app/checkout", label: "Check Out", icon: "LogOut" },
       { path: "/app/cashiering", label: "Cashiering", icon: "Wallet" },
       { path: "/app/housekeeping", label: "Housekeeping", icon: "Sparkles" },
       { path: "/app/reports", label: "Reports", icon: "BarChart3" },
@@ -187,6 +188,7 @@ export const NAV_CONFIG = {
       { path: "/app/reservations/cancel", label: "Cancel Booking", icon: "Ban" },
       { path: "/app/reservations/assign", label: "Assign Room", icon: "UserCheck" },
       { path: "/app/checkin", label: "Check In", icon: "LogIn" },
+      { path: "/app/checkout", label: "Check Out", icon: "LogOut" },
       { path: "/app/cashiering", label: "Cashiering", icon: "Wallet" },
       { path: "/app/settings", label: "Settings", icon: "Settings" }
     ]
