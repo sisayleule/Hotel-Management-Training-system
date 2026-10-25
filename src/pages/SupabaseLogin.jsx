@@ -127,23 +127,33 @@ export const SupabaseLogin = () => {
     statusAlertShownRef.current = false;
 
     try {
-      // Look up the email associated with this student ID
-      const { data: profileData, error: lookupError } = await supabase
+      const idInput = studentId.trim();
+
+      // Resolve the Supabase Auth email from the profiles table.
+      // Try all three strategies so old and new accounts all work:
+      //   1. Match by student_id column (new registrations)
+      //   2. Match by university_id column (migration path)
+      //   3. Treat the input as a direct email (pre-existing accounts)
+
+      let resolvedEmail = null;
+
+      // Strategy 1 & 2: look up by student_id OR university_id in one query
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('email')
-        .eq('student_id', studentId.trim())
-        .single();
+        .or(`student_id.eq.${idInput},university_id.eq.${idInput}`)
+        .maybeSingle();
 
-      if (lookupError || !profileData) {
-        toast.error('Student ID not found. Please check your ID or register first.');
-        setLoading(false);
-        setLoginAttempted(false);
-        return;
+      if (profileData?.email) {
+        resolvedEmail = profileData.email;
+      } else {
+        // Strategy 3: treat input as a direct email (covers old accounts)
+        resolvedEmail = idInput;
       }
 
-      // Sign in using the email retrieved from the profile
+      // Sign in with whatever email we resolved
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email: profileData.email,
+        email: resolvedEmail,
         password,
       });
 
@@ -153,7 +163,7 @@ export const SupabaseLogin = () => {
     } catch (error) {
       console.error('Login error:', error);
       if (error.message.includes('Invalid login credentials')) {
-        toast.error('Incorrect password. Please try again.');
+        toast.error('Student ID or password is incorrect. Please try again.');
       } else {
         toast.error(error.message || 'Login failed. Please try again.');
       }
@@ -196,7 +206,7 @@ export const SupabaseLogin = () => {
           <form ref={formRef} onSubmit={handleLoginSubmit} className="p-6 space-y-4">
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                Student ID
+                Student ID or Email
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
@@ -204,7 +214,7 @@ export const SupabaseLogin = () => {
                 </span>
                 <input
                   type="text"
-                  placeholder="Enter your Student ID"
+                  placeholder="e.g. UGR/12345/16 or your email"
                   value={studentId}
                   onChange={(e) => setStudentId(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 border border-ids-border rounded focus:outline-none focus:ring-1 focus:ring-ids-header focus:border-ids-header bg-gray-50 text-sm"
