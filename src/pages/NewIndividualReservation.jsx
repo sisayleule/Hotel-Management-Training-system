@@ -21,7 +21,6 @@ export const NewIndividualReservation = () => {
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [existingGuest, setExistingGuest] = useState(null);
   const [pendingReservationData, setPendingReservationData] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
 
   const todayStr = getTodayString();
   const tomorrowStr = getFutureDate(1);
@@ -117,7 +116,7 @@ export const NewIndividualReservation = () => {
     }
   };
 
-  const createReservationWithData = async (data, reuseExistingGuest) => {
+  const createReservationWithData = (data, reuseExistingGuest) => {
     const resPayload = {
       ...data,
       company_code: "",
@@ -136,16 +135,9 @@ export const NewIndividualReservation = () => {
       _existingGuestId: reuseExistingGuest ? existingGuest?.guest_id : null
     };
 
-    setSubmitting(true);
-    try {
-      const resNo = await createReservation(resPayload);
-      toast.success(`✅ Individual Reservation ${resNo} created successfully!`);
-      navigate("/app/reservations");
-    } catch (err) {
-      toast.error(`Failed to create reservation: ${err.message}`);
-    } finally {
-      setSubmitting(false);
-    }
+    const resNo = createReservation(resPayload);
+    toast.success(`✅ Individual Reservation ${resNo} created successfully!`);
+    navigate("/reservations");
   };
 
   const handleContinueWithExisting = () => {
@@ -414,7 +406,7 @@ export const NewIndividualReservation = () => {
         <div className="flex justify-end space-x-4">
           <button
             type="button"
-            onClick={() => navigate("/app/reservations")}
+            onClick={() => navigate("/reservations")}
             className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-lg transition-colors flex items-center space-x-2"
           >
             <X className="w-4 h-4" />
@@ -423,11 +415,10 @@ export const NewIndividualReservation = () => {
           
           <button
             type="submit"
-            disabled={submitting}
-            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition-colors flex items-center space-x-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition-colors flex items-center space-x-2"
           >
             <Save className="w-4 h-4" />
-            <span>{submitting ? "Saving…" : "Create Reservation"}</span>
+            <span>Create Reservation</span>
           </button>
         </div>
       </form>

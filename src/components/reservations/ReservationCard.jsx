@@ -23,8 +23,10 @@ import { Calendar, CreditCard, Home, User, Edit2, Trash2, ArrowRight } from "luc
  * ReservationCard component - Optimized for mobile layout with touch elements and actions
  * @param {Object} props
  * @param {Reservation} props.reservation
+ * @param {function(string): void} props.onCancel
+ * @param {function(string): void} props.onEdit
  */
-export const ReservationCard = React.memo(({ reservation }) => {
+export const ReservationCard = React.memo(({ reservation, onCancel, onEdit }) => {
   const navigate = useNavigate();
   const {
     reservation_no,
@@ -41,7 +43,7 @@ export const ReservationCard = React.memo(({ reservation }) => {
   } = reservation;
 
   const handleCardClick = () => {
-    navigate(`/app/reservations/${reservation_no}`);
+    navigate(`/reservations/${reservation_no}`);
   };
 
   const isAssigned = rooms_assigned && rooms_assigned.length > 0;
@@ -122,14 +124,14 @@ export const ReservationCard = React.memo(({ reservation }) => {
         {status === "confirmed" && (
           <>
             <button
-              onClick={() => navigate(`/app/reservations/amend?id=${reservation_no}`)}
+              onClick={() => onEdit(reservation_no)}
               className="h-9 w-9 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded flex items-center justify-center transition-colors cursor-pointer"
-              title="Amend Booking"
+              title="Edit Booking"
             >
               <Edit2 className="w-4 h-4" />
             </button>
             <button
-              onClick={() => navigate(`/app/reservations/cancel?id=${reservation_no}`)}
+              onClick={() => onCancel(reservation_no)}
               className="h-9 w-9 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded flex items-center justify-center transition-colors cursor-pointer"
               title="Cancel Booking"
             >

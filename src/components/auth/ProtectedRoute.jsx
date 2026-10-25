@@ -69,12 +69,6 @@ export const ProtectedRoute = ({ children, requiredPermissions = [], requireRole
   if (!user) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
-
-  // Force password change if flagged — intercept before any other check
-  // Exclude /change-password itself to avoid redirect loop
-  if (profile?.must_change_password && location.pathname !== '/change-password') {
-    return <Navigate to="/change-password" replace />;
-  }
   
   // Check if SupabaseLogin.jsx is currently handling a rejection (prevent race condition)
   // Security: Check staleness to prevent stuck flags from bypassing status checks

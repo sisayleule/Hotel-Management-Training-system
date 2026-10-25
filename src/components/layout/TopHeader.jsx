@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { Bell, Menu, User, RefreshCw, LogOut } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useHotelStore } from "../../store/useHotelStore.js";
@@ -12,10 +11,9 @@ export const TopHeader = ({ onMenuClick }) => {
   const { currentUser, logout } = useAuth();
   const { selectedDate, resetToDemo } = useHotelStore();
   const getRoleMetadata = useRoleStore((state) => state.getRoleMetadata);
-  const getNavConfig = useRoleStore((state) => state.getNavConfig);
   const roleMetadata = getRoleMetadata();
-  const isFnbRole = getNavConfig().defaultDashboard === "/waiter";
   const [timeStr, setTimeStr] = useState("");
+  const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
     // Simulated live clock starting at 13:10:00 on June 30, 2026
@@ -43,6 +41,16 @@ export const TopHeader = ({ onMenuClick }) => {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    // Detect scroll to add blur after hero section
+    const handleScroll = () => {
+      // Add blur when scrolled more than 100px (adjust based on your hero height)
+      setIsScrolled(window.scrollY > 100);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleReset = () => {
     if (window.confirm("Reset all simulation data to default demo values? Any new changes will be lost.")) {
@@ -51,14 +59,12 @@ export const TopHeader = ({ onMenuClick }) => {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-  };
-
   return (
     <header
       id="top-header"
-      className="bg-ids-sidebar text-ids-header-text h-14 border-b border-ids-border px-4 flex items-center justify-between sticky top-0 z-40 shadow-sm safe-padding-top"
+      className={`text-ids-header-text h-14 border-b border-ids-border px-4 flex items-center justify-between sticky top-0 z-40 shadow-sm safe-padding-top transition-all duration-300 ${
+        isScrolled ? "backdrop-blur-md bg-white/10" : ""
+      }`}
     >
       <div className="flex items-center space-x-3">
         <button
@@ -103,32 +109,20 @@ export const TopHeader = ({ onMenuClick }) => {
           </div>
           <div className="hidden md:flex flex-col text-left">
             <span className="text-xs font-bold font-sans uppercase leading-none">
-              {currentUser?.full_name || currentUser?.name || "IT ADMIN"}
+              {currentUser?.name || "IT ADMIN"}
             </span>
             <span className="text-[10px] text-ids-sidebar-text font-semibold uppercase tracking-wider leading-none mt-1">
               {roleMetadata?.name || "Manager"}
             </span>
           </div>
-          {isFnbRole ? (
-            <Link
-              id="btn-header-logout"
-              to="/waiter"
-              title="Return to F&B dashboard"
-              className="hover:bg-white/10 p-1 rounded transition-colors text-white ml-2"
-            >
-              <LogOut className="w-4 h-4" />
-            </Link>
-          ) : (
-            <button
-              id="btn-header-logout"
-              type="button"
-              onClick={handleLogout}
-              title="Log Out"
-              className="hover:bg-white/10 p-1 rounded transition-colors text-white ml-2"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          )}
+          <button
+            id="btn-header-logout"
+            onClick={logout}
+            title="Log Out"
+            className="hover:bg-white/10 p-1 rounded transition-colors text-white ml-2"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </header>

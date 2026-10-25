@@ -2,7 +2,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useHotelStore } from '../store/useHotelStore';
 import { useRoleStore } from '../store/useRoleStore';
-import toast from 'react-hot-toast';
 
 const AuthContext = createContext({});
 
@@ -161,17 +160,6 @@ export const AuthProvider = ({ children }) => {
       setProfileError(null);
       setAuthStatusRejection(null); // Clear any previous rejection
       
-      // Show welcome message:
-      // - "Welcome back" for returning sessions restored automatically (INITIAL_SESSION)
-      // - Fresh SIGNED_IN handled by SupabaseLogin.jsx to avoid double-toast
-      if (eventType === 'INITIAL_SESSION') {
-        const displayName = data.full_name || data.university_id || 'User';
-        toast.success(`Welcome back, ${displayName}!`, {
-          duration: 4000,
-          icon: '👋',
-        });
-      }
-      
       // Determine training RBAC role based on auth role
       // Map auth roles to training roles for the PMS system
       let trainingRole = 'hotel_manager'; // Default fallback
@@ -187,9 +175,9 @@ export const AuthProvider = ({ children }) => {
             trainingRole = 'hotel_manager'; // Admin/dept_head get full access
             break;
           case 'student':
-            // Students: respect the role switcher selection stored in localStorage,
-            // only default to front_office if no role has been selected yet
-            trainingRole = localStorage.getItem('pms_demo_role') || 'front_office';
+            // Students default to front_office role
+            // TODO: This could be customized per student or department
+            trainingRole = 'front_office';
             break;
           default:
             trainingRole = 'hotel_manager';
@@ -207,12 +195,11 @@ export const AuthProvider = ({ children }) => {
             id: data.id,
             email: user?.email || '',
             full_name: data.full_name,
-            authRole: data.role,
+            authRole: data.role, // Auth hierarchy role (admin/dept_head/student)
             department_id: data.department_id,
             status: data.status,
-            // For students, show university_id as username; for staff use email local part
-            username: data.university_id || user?.email?.split('@')[0] || '',
-            role: trainingRole
+            username: user?.email?.split('@')[0] || '', // Derive for backward compat
+            role: trainingRole // Training RBAC role (now properly set!)
           }
         });
       }

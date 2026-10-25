@@ -28,7 +28,7 @@ const WaiterLanding = () => {
   };
 
   const handleLogout = () => {
-    navigate("/app/waiter");
+    navigate("/waiter/select-outlet");
   };
 
   return (
@@ -46,8 +46,7 @@ const WaiterLanding = () => {
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 hover:bg-gray-100 rounded-lg transition-colors"
-            aria-label="Log out"
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <LogOut size={20} />
             <span>LOGOUT</span>

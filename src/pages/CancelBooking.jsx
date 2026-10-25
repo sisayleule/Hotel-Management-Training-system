@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useHotelStore } from "../store/useHotelStore.js";
-import { useReservations } from "../hooks/useReservations.js";
 import PageWrapper from "../components/layout/PageWrapper.jsx";
 import { ReservationStatusBadge } from "../components/reservations/ReservationStatusBadge.jsx";
 import { Modal } from "../components/ui/Modal.jsx";
@@ -13,16 +12,12 @@ export const CancelBooking = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Store (read-only — reservations list, guests for contact lookup)
+  // Store
   const reservations = useHotelStore((state) => state.reservations);
-  const guests       = useHotelStore((state) => state.guests);
-  const currentUser  = useHotelStore((state) => state.currentUser);
-
-  // Supabase-backed hook
-  const { cancelReservation, loadReservations } = useReservations();
-
-  // Load real data from Supabase on mount
-  useEffect(() => { loadReservations(); }, []);
+  const rooms = useHotelStore((state) => state.rooms);
+  const guests = useHotelStore((state) => state.guests);
+  const cancelReservation = useHotelStore((state) => state.cancelReservation);
+  const currentUser = useHotelStore((state) => state.currentUser);
 
   // Local State
   const [mode, setMode] = useState("search"); // "search" | "cancelling"
@@ -40,7 +35,6 @@ export const CancelBooking = () => {
   const [cancellationReason, setCancellationReason] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [errors, setErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
 
   // Guest contact lookup cache
   const guestContactCache = useMemo(() => {
@@ -95,22 +89,16 @@ export const CancelBooking = () => {
     if (searchCriteria.phone.trim()) {
       const q = searchCriteria.phone.trim();
       results = results.filter(r => {
-        // Real Supabase rows store phone directly on the reservation
-        if (r.phone && r.phone.includes(q)) return true;
-        // Legacy guests store fallback
         const contacts = getGuestContacts(r.guest_name);
-        return contacts.phone && contacts.phone.includes(q);
+        return contacts.phone.includes(q);
       });
     }
 
     if (searchCriteria.email.trim()) {
       const q = searchCriteria.email.toLowerCase().trim();
       results = results.filter(r => {
-        // Real Supabase rows store email directly on the reservation
-        if (r.email && r.email.toLowerCase().includes(q)) return true;
-        // Legacy guests store fallback
         const contacts = getGuestContacts(r.guest_name);
-        return contacts.email && contacts.email.toLowerCase().includes(q);
+        return contacts.email.toLowerCase().includes(q);
       });
     }
 
@@ -211,11 +199,10 @@ export const CancelBooking = () => {
     setShowConfirmDialog(true);
   };
 
-  // Confirm cancellation — saves to Supabase then clears local state
-  const confirmCancellation = async () => {
-    setSubmitting(true);
+  // Confirm cancellation
+  const confirmCancellation = () => {
     try {
-      await cancelReservation(selectedReservation.reservation_no, cancellationReason);
+      cancelReservation(selectedReservation.reservation_no, cancellationReason);
       toast.success(`Reservation ${selectedReservation.reservation_no} cancelled successfully ✓`, {
         duration: 3000,
         icon: "✓"
@@ -238,12 +225,10 @@ export const CancelBooking = () => {
       setShowConfirmDialog(false);
       setErrors({});
     } catch (error) {
-      toast.error("Cancellation failed — please try again", {
+      toast.error("Cancellation failed - please try again", {
         duration: 4000,
         icon: "⚠️"
       });
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -281,7 +266,7 @@ export const CancelBooking = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-ids-border pb-3 gap-3 select-none">
           <div className="flex items-center space-x-3">
             <button
-              onClick={() => navigate("/app/reservations")}
+              onClick={() => navigate("/reservations")}
               className="p-1.5 hover:bg-gray-100 rounded-full cursor-pointer text-gray-500 hover:text-gray-900"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -520,8 +505,8 @@ export const CancelBooking = () => {
                   </h3>
                   {[
                     { label: "Guest Name", value: selectedReservation.guest_name },
-                    { label: "Phone", value: selectedReservation.phone || getGuestContacts(selectedReservation.guest_name).phone || "—" },
-                    { label: "Email", value: selectedReservation.email || getGuestContacts(selectedReservation.guest_name).email || "—" }
+                    { label: "Phone", value: getGuestContacts(selectedReservation.guest_name).phone || "—" },
+                    { label: "Email", value: getGuestContacts(selectedReservation.guest_name).email || "—" }
                   ].map(({ label, value }) => (
                     <div key={label}>
                       <div className="text-[9px] text-gray-400 uppercase tracking-wider mb-0.5">{label}</div>
@@ -674,16 +659,14 @@ export const CancelBooking = () => {
             <div className="flex gap-3">
               <button
                 onClick={confirmCancellation}
-                disabled={submitting}
-                className="flex-1 bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 transition-colors flex items-center justify-center gap-2 font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex-1 bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 transition-colors flex items-center justify-center gap-2 font-bold"
               >
                 <Check className="w-4 h-4" />
-                {submitting ? "Cancelling…" : "Confirm Cancel"}
+                Confirm Cancel
               </button>
               <button
                 onClick={() => setShowConfirmDialog(false)}
-                disabled={submitting}
-                className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded hover:bg-gray-300 transition-colors font-bold disabled:opacity-60"
+                className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded hover:bg-gray-300 transition-colors font-bold"
               >
                 Go Back
               </button>

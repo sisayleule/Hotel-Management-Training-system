@@ -1,19 +1,13 @@
 import React, { useState } from "react";
-import { X, Save, ShieldAlert, CheckCircle, Flame, Wrench, AlertCircle, Info, User, Lock } from "lucide-react";
+import { X, Save, ShieldAlert, CheckCircle, Flame, Wrench, AlertCircle, Info, User } from "lucide-react";
 import { useHotelStore } from "../../store/useHotelStore.js";
-import { usePermissions } from "../../hooks/usePermissions.js";
-import { PERMISSIONS } from "../../config/rbac.js";
 import { useEnterAsTab } from "../../hooks/useEnterAsTab.js";
 import { getRoomStatusColors, getStatusLabel } from "../../utils/roomUtils.js";
 import toast from "react-hot-toast";
 
 export const HouseKeepingCard = ({ roomNo, onClose }) => {
   const { rooms, housekeeperStaff, updateRoomHousekeeping, assignHousekeeperToRoom, addMaintenanceRequest } = useHotelStore();
-  const { can } = usePermissions();
-
-  // Only housekeeping role (and manager) may change room status / log maintenance
-  const canUpdateHK = can(PERMISSIONS.HOUSEKEEPING_UPDATE_STATUS) || can("*");
-
+  
   const roomObj = rooms.find((r) => r.room_no === roomNo);
   
   if (!roomObj) return null;
@@ -39,10 +33,6 @@ export const HouseKeepingCard = ({ roomNo, onClose }) => {
   };
 
   const handleConditionChange = (cond) => {
-    if (!canUpdateHK) {
-      toast.error("Only Housekeeping staff can change room condition.");
-      return;
-    }
     setCondition(cond);
     updateRoomHousekeeping(roomNo, { condition: cond });
     
@@ -57,10 +47,6 @@ export const HouseKeepingCard = ({ roomNo, onClose }) => {
 
   const handleMaintenanceSubmit = (e) => {
     e.preventDefault();
-    if (!canUpdateHK) {
-      toast.error("Only Housekeeping staff can log maintenance requests.");
-      return;
-    }
     if (!maintDesc.trim()) {
       toast.error("Please specify a maintenance description.");
       return;
@@ -88,10 +74,6 @@ export const HouseKeepingCard = ({ roomNo, onClose }) => {
   };
 
   const handleQuickStatus = (newStatus) => {
-    if (!canUpdateHK) {
-      toast.error("Only Housekeeping staff can change room status.");
-      return;
-    }
     updateRoomHousekeeping(roomNo, { status: newStatus });
     toast.success(`Room ${roomNo} status changed to ${getStatusLabel(newStatus)}.`);
     onClose();
@@ -190,32 +172,24 @@ export const HouseKeepingCard = ({ roomNo, onClose }) => {
           {/* Room condition */}
           <div className="space-y-1.5">
             <label className="block text-[10px] font-black uppercase text-gray-500 tracking-wider">Room Physical Condition</label>
-            {canUpdateHK ? (
-              <div className="flex gap-4">
-                {["Normal", "Needs Attention", "Maintenance Required"].map((cond) => (
-                  <label key={cond} className="flex items-center space-x-1.5 cursor-pointer font-bold text-gray-600 text-[11px]">
-                    <input
-                      type="radio"
-                      name="room_condition"
-                      checked={condition === cond}
-                      onChange={() => handleConditionChange(cond)}
-                      className="accent-slate-800"
-                    />
-                    <span>{cond}</span>
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 px-3 py-2 rounded border border-orange-200 bg-orange-50 text-[11px] text-orange-700 font-bold">
-                <Lock className="w-3.5 h-3.5 shrink-0" />
-                <span>Condition changes are restricted to Housekeeping staff.</span>
-              </div>
-            )}
+            <div className="flex gap-4">
+              {["Normal", "Needs Attention", "Maintenance Required"].map((cond) => (
+                <label key={cond} className="flex items-center space-x-1.5 cursor-pointer font-bold text-gray-600 text-[11px]">
+                  <input
+                    type="radio"
+                    name="room_condition"
+                    checked={condition === cond}
+                    onChange={() => handleConditionChange(cond)}
+                    className="accent-slate-800"
+                  />
+                  <span>{cond}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
-          {/* If Maintenance Required, Show Logging Form — housekeeping only */}
+          {/* If Maintenance Required, Show Logging Form */}
           {condition === "Maintenance Required" && (
-            canUpdateHK ? (
             <form ref={maintFormRef} onSubmit={handleMaintenanceSubmit} className="border border-amber-200 bg-amber-50/50 rounded p-3 space-y-3.5 animate-scale-in">
               <div className="flex items-center gap-1 font-black uppercase text-[9px] text-amber-700">
                 <Wrench className="w-3.5 h-3.5" />
@@ -282,91 +256,76 @@ export const HouseKeepingCard = ({ roomNo, onClose }) => {
                 <span>Submit to Maintenance Logs</span>
               </button>
             </form>
-            ) : null
           )}
 
-          {/* Quick Status Buttons — housekeeping only */}
+          {/* Quick Status Buttons */}
           <div className="space-y-1.5">
             <label className="block text-[10px] font-black uppercase text-gray-500 tracking-wider">Fast State Transitions</label>
-            {canUpdateHK ? (
-              <div className="grid grid-cols-2 gap-2">
-                {roomObj.status === "dirty" && (
-                  <>
-                    <button
-                      onClick={() => handleQuickStatus("vacant_clean")}
-                      className="py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded shadow-3xs flex items-center justify-center space-x-1 transition-all"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Release Vacant Clean</span>
-                    </button>
-                    <button
-                      onClick={() => handleQuickStatus("out_of_order")}
-                      className="py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded shadow-3xs flex items-center justify-center space-x-1 transition-all"
-                    >
-                      <Wrench className="w-4 h-4" />
-                      <span>Mark Out of Order</span>
-                    </button>
-                  </>
-                )}
-
-                {roomObj.status === "vacant_clean" && (
-                  <>
-                    <button
-                      onClick={() => handleQuickStatus("dirty")}
-                      className="py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded shadow-3xs flex items-center justify-center space-x-1 transition-all animate-pulse"
-                    >
-                      <AlertCircle className="w-4 h-4" />
-                      <span>Report Vacant Dirty</span>
-                    </button>
-                    <button
-                      onClick={() => handleQuickStatus("out_of_order")}
-                      className="py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded shadow-3xs flex items-center justify-center space-x-1 transition-all"
-                    >
-                      <Wrench className="w-4 h-4" />
-                      <span>Mark Out of Order</span>
-                    </button>
-                  </>
-                )}
-
-                {roomObj.status === "out_of_order" && (
+            <div className="grid grid-cols-2 gap-2">
+              {roomObj.status === "dirty" && (
+                <>
                   <button
-                    onClick={() => {
-                      handleQuickStatus("vacant_clean");
-                      updateRoomHousekeeping(roomNo, { condition: "Normal" });
-                    }}
-                    className="col-span-2 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded shadow-3xs flex items-center justify-center space-x-1 transition-all"
+                    onClick={() => handleQuickStatus("vacant_clean")}
+                    className="py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded shadow-3xs flex items-center justify-center space-x-1 transition-all"
                   >
                     <CheckCircle className="w-4 h-4" />
-                    <span>Fix & Release Clean Ready</span>
+                    <span>Release Vacant Clean</span>
                   </button>
-                )}
-
-                {roomObj.status === "occupied" && (
                   <button
-                    onClick={() => {
-                      handleQuickStatus("dirty");
-                      toast.success("Guest checked out manually via Housekeeping Board");
-                    }}
-                    className="col-span-2 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded shadow-3xs flex items-center justify-center space-x-1 transition-all"
+                    onClick={() => handleQuickStatus("out_of_order")}
+                    className="py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded shadow-3xs flex items-center justify-center space-x-1 transition-all"
                   >
-                    <ShieldAlert className="w-4 h-4" />
-                    <span>Force Checkout & Mark Dirty</span>
+                    <Wrench className="w-4 h-4" />
+                    <span>Mark Out of Order</span>
                   </button>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-start gap-2 px-3 py-2.5 rounded border border-orange-200 bg-orange-50 text-[11px] text-orange-700">
-                <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                <div>
-                  <p className="font-black uppercase text-[9px] tracking-wide">Housekeeping Access Only</p>
-                  <p className="mt-0.5 leading-snug">
-                    Room status transitions (clean, dirty, out-of-order) are managed exclusively
-                    by <strong>Housekeeping</strong> staff. Front Office may only check guests
-                    out — the room is automatically set to <strong>Dirty</strong> on checkout.
-                  </p>
-                </div>
-              </div>
-            )}
+                </>
+              )}
+
+              {roomObj.status === "vacant_clean" && (
+                <>
+                  <button
+                    onClick={() => handleQuickStatus("dirty")}
+                    className="py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded shadow-3xs flex items-center justify-center space-x-1 transition-all animate-pulse"
+                  >
+                    <AlertCircle className="w-4 h-4" />
+                    <span>Report Vacant Dirty</span>
+                  </button>
+                  <button
+                    onClick={() => handleQuickStatus("out_of_order")}
+                    className="py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded shadow-3xs flex items-center justify-center space-x-1 transition-all"
+                  >
+                    <Wrench className="w-4 h-4" />
+                    <span>Mark Out of Order</span>
+                  </button>
+                </>
+              )}
+
+              {roomObj.status === "out_of_order" && (
+                <button
+                  onClick={() => {
+                    handleQuickStatus("vacant_clean");
+                    updateRoomHousekeeping(roomNo, { condition: "Normal" });
+                  }}
+                  className="col-span-2 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded shadow-3xs flex items-center justify-center space-x-1 transition-all"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Fix & Release Clean Ready</span>
+                </button>
+              )}
+
+              {roomObj.status === "occupied" && (
+                <button
+                  onClick={() => {
+                    handleQuickStatus("dirty");
+                    toast.success("Guest checked out manually via Housekeeping Board");
+                  }}
+                  className="col-span-2 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded shadow-3xs flex items-center justify-center space-x-1 transition-all"
+                >
+                  <ShieldAlert className="w-4 h-4" />
+                  <span>Force Checkout & Mark Dirty</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Housekeeper Assignment */}

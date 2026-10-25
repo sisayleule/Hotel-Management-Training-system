@@ -1,19 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Hotel, IdCard, Mail, Lock, ArrowRight, Home } from 'lucide-react';
+import { Hotel, Mail, Lock, ArrowRight, Home } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useSupabaseAuth } from '../contexts/AuthContext';
 import { useEnterAsTab } from '../hooks/useEnterAsTab';
 import toast from 'react-hot-toast';
 
-// UGR/12345/16 pattern
-const UGR_PATTERN = /^UGR\/[0-9]{5}\/[0-9]{2}$/;
-
-// Only gmail addresses are accepted for dept_head / admin login
-const GMAIL_PATTERN = /^[^\s@]+@gmail\.com$/i;
-
 export const SupabaseLogin = () => {
-  const [identifier, setIdentifier] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [loginAttempted, setLoginAttempted] = useState(false);
@@ -66,7 +60,7 @@ export const SupabaseLogin = () => {
       } else if (profile.role === 'dept_head') {
         navigate('/dept-head');
       } else {
-        navigate('/app/dashboard');
+        navigate('/dashboard');
       }
       
       setLoading(false);
@@ -121,10 +115,9 @@ export const SupabaseLogin = () => {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
 
-    const raw = identifier.trim();
-
-    if (!raw) {
-      toast.error('Please enter your University ID or email address');
+    // Validation
+    if (!email.trim()) {
+      toast.error('Please enter your email');
       return;
     }
     if (!password) {
@@ -132,95 +125,36 @@ export const SupabaseLogin = () => {
       return;
     }
 
-    // ── Detection logic ────────────────────────────────────────────────────────
-    const isGmail    = GMAIL_PATTERN.test(raw);
-    const isEmail    = raw.includes('@');          // any email (may be rejected below)
-    const isUGR      = UGR_PATTERN.test(raw.toUpperCase());
-
-    // Students must use their UGR ID — no email login allowed for students
-    if (isEmail && !isGmail) {
-      toast.error('Only @gmail.com addresses are accepted. Students must log in with their University ID (UGR/xxxxx/xx).');
-      return;
-    }
-
-    if (!isGmail && !isUGR) {
-      toast.error('Enter a valid University ID (UGR/xxxxx/xx) or a Gmail address for department head login.');
-      return; // no Supabase call attempted
-    }
-    // ──────────────────────────────────────────────────────────────────────────
-
     setLoading(true);
     setLoginAttempted(true);
-    statusAlertShownRef.current = false;
+    statusAlertShownRef.current = false; // Reset for new login attempt
 
     try {
-      let emailToUse;
-
-      if (isGmail) {
-        // ── Path A: dept_head / admin — direct Gmail login ─────────────────
-        emailToUse = raw;
-
-      } else {
-        // ── Path B: student — look up internal email by university_id ───────
-        const ugr = raw.toUpperCase();
-        const { data: profileRow, error: lookupError } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('university_id', ugr)
-          .maybeSingle();
-
-        if (lookupError) throw lookupError;
-
-        if (!profileRow) {
-          toast.error('University ID not found. Please check your ID or register first.');
-          setLoading(false);
-          setLoginAttempted(false);
-          return;
-        }
-
-        emailToUse = profileRow.email;
-      }
-
-      // ── Shared auth call ────────────────────────────────────────────────────
+      // Simply call signInWithPassword - AuthContext will handle status gating
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email: emailToUse,
+        email,
         password,
       });
 
       if (authError) throw authError;
 
-      // After successful auth, enforce role restriction:
-      // Gmail login is only allowed for dept_head and admin roles.
-      // Students who somehow have a gmail in the system are blocked here.
-      if (isGmail) {
-        const { data: profileRow } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('email', emailToUse)
-          .maybeSingle();
-
-        if (profileRow && profileRow.role === 'student') {
-          // Sign them back out immediately
-          await supabase.auth.signOut();
-          toast.error('Students must log in with their University ID (UGR/xxxxx/xx), not an email address.');
-          setLoading(false);
-          setLoginAttempted(false);
-          return;
-        }
-      }
-
-      // AuthContext handles status gating and navigation via useEffect above
-
+      // Success! AuthContext will:
+      // 1. Fetch profile
+      // 2. Check status
+      // 3. Either approve (set profile) or reject (set authStatusRejection)
+      // 4. useEffect above will handle navigation or alert display
+      
     } catch (error) {
       console.error('Login error:', error);
       if (error.message.includes('Invalid login credentials')) {
-        toast.error('Incorrect password. Please try again.');
+        toast.error('Invalid email or password');
       } else {
         toast.error(error.message || 'Login failed. Please try again.');
       }
       setLoading(false);
       setLoginAttempted(false);
     }
+    // Note: Don't setLoading(false) on success - let useEffect handle it after profile loads
   };
 
   // Apply Enter-as-Tab navigation
@@ -260,25 +194,19 @@ export const SupabaseLogin = () => {
           <form ref={formRef} onSubmit={handleLoginSubmit} className="p-6 space-y-4">
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                University ID
+                Email Address
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                  {identifier.includes('@') ? (
-                    <Mail className="w-4 h-4" />
-                  ) : (
-                    <IdCard className="w-4 h-4" />
-                  )}
+                  <Mail className="w-4 h-4" />
                 </span>
                 <input
-                  type="text"
-                  placeholder="UGR/12345/16"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 border border-ids-border rounded focus:outline-none focus:ring-1 focus:ring-ids-header focus:border-ids-header bg-gray-50 text-sm"
                   disabled={loading}
-                  autoComplete="off"
-                  spellCheck={false}
                 />
               </div>
             </div>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Grid,
@@ -14,14 +14,11 @@ import {
   X
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
-import { useRoleStore } from "../../store/useRoleStore.js";
 
 export const BottomNav = () => {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
   const { logout } = useAuth();
-  const getNavConfig = useRoleStore((state) => state.getNavConfig);
 
   const primaryTabs = [
     { label: "Dashboard", path: "/app/dashboard", icon: LayoutDashboard },
@@ -41,19 +38,6 @@ export const BottomNav = () => {
   const handleMoreClick = (e) => {
     e.preventDefault();
     setIsMoreOpen(true);
-  };
-
-  const handleLogout = () => {
-    setIsMoreOpen(false);
-
-    const { defaultDashboard } = getNavConfig();
-
-    if (defaultDashboard === "/waiter") {
-      navigate(defaultDashboard, { replace: true });
-      return;
-    }
-
-    logout();
   };
 
   return (
@@ -142,8 +126,10 @@ export const BottomNav = () => {
               {/* Logout Button inside drawer */}
               <button
                 id="drawer-logout-btn"
-                type="button"
-                onClick={handleLogout}
+                onClick={() => {
+                  setIsMoreOpen(false);
+                  logout();
+                }}
                 className="flex flex-col items-center justify-center p-3 rounded border border-red-900/30 bg-red-950/20 text-red-300 hover:bg-red-950/40"
               >
                 <LogOut className="w-5 h-5 mb-1.5" />

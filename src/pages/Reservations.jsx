@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useHotelStore } from "../store/useHotelStore.js";
-import { useReservations } from "../hooks/useReservations.js";
 import PageWrapper from "../components/layout/PageWrapper.jsx";
 import { ReservationCard } from "../components/reservations/ReservationCard.jsx";
 import { ReservationStatusBadge } from "../components/reservations/ReservationStatusBadge.jsx";
@@ -30,12 +29,7 @@ import toast from "react-hot-toast";
 export const Reservations = () => {
   const navigate = useNavigate();
   const reservations = useHotelStore((state) => state.reservations);
-
-  // Supabase-backed hook
-  const { loadReservations } = useReservations();
-
-  // Load real reservations from Supabase on mount
-  useEffect(() => { loadReservations(); }, []);
+  const cancelReservation = useHotelStore((state) => state.cancelReservation);
 
   // States
   const [searchOpen, setSearchOpen] = useState(false);
@@ -83,10 +77,10 @@ export const Reservations = () => {
   const processedReservations = useMemo(() => {
     let result = [...reservations];
 
-    // Show ALL reservations in the default view including cancelled ones —
-    // cancelled records are kept in the database and must remain visible
-    // with their red badge so staff can see the history.
-    // Use the Status filter to hide them if needed.
+    // Exclude cancelled reservations from default view (unless explicitly filtered)
+    if (statusFilter === "All") {
+      result = result.filter((r) => r.status !== "cancelled");
+    }
 
     // Real-time Text Search
     if (searchQuery.trim()) {
@@ -174,7 +168,17 @@ export const Reservations = () => {
     setCurrentPage(Math.max(1, Math.min(totalPages, page)));
   };
 
+  // Actions
+  const handleCancelClick = useCallback((no) => {
+    if (window.confirm(`Are you sure you want to cancel booking #${no}?`)) {
+      cancelReservation(no, "Guest requested cancellation");
+      toast.success(`Booking #${no} cancelled successfully`);
+    }
+  }, [cancelReservation]);
 
+  const handleEditClick = useCallback((no) => {
+    navigate(`/app/reservations/${no}`);
+  }, [navigate]);
 
   return (
     <PageWrapper>
@@ -366,9 +370,9 @@ export const Reservations = () => {
                             </RequirePermission>
                             <RequirePermission permission={PERMISSIONS.RESERVATIONS_CANCEL}>
                               <button
-                                onClick={() => navigate(`/app/reservations/cancel?id=${res.reservation_no}`)}
+                                onClick={() => handleCancelClick(res.reservation_no)}
                                 className="p-1 hover:bg-gray-100 rounded text-red-600"
-                                title="Cancel reservation"
+                                title="Cancel reservation entry"
                               >
                                 <X className="w-3.5 h-3.5" />
                               </button>
@@ -390,6 +394,8 @@ export const Reservations = () => {
             <ReservationCard
               key={res.reservation_no}
               reservation={res}
+              onCancel={handleCancelClick}
+              onEdit={handleEditClick}
             />
           ))}
         </div>
@@ -406,7 +412,7 @@ export const Reservations = () => {
             </div>
             <RequirePermission permission={PERMISSIONS.RESERVATIONS_CREATE}>
               <button
-                onClick={() => navigate("/app/reservations/new")}
+                onClick={() => navigate("/reservations/new")}
                 className="px-4 py-1.5 bg-ids-sidebar hover:bg-ids-sidebar-hover text-white font-bold uppercase rounded transition-colors"
               >
                 + Create Booking

@@ -7,25 +7,18 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Step 2: Create approval_log table
--- Columns derived from ApplicantsSection.jsx INSERT calls (handleApprove / handleReject):
---   student_id  → student.id       (UUID FK → profiles)
---   action      → 'approved' | 'rejected'
---   reason      → the typed reason string
---   actor_id    → profile.id       (UUID FK → profiles, the dept head taking action)
---   created_at  → auto-set on insert (used for ordering in RLS policies)
-
 CREATE TABLE IF NOT EXISTS approval_log (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  student_id  UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  actor_id    UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  action      TEXT NOT NULL CHECK (action IN ('approved', 'rejected')),
-  reason      TEXT NOT NULL,
-  created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  student_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  action TEXT NOT NULL CHECK (action IN ('approved', 'rejected', 'disabled')),
+  reason TEXT,
+  actor_id UUID NOT NULL REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Step 3: Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_approval_log_student ON approval_log(student_id);
-CREATE INDEX IF NOT EXISTS idx_approval_log_actor   ON approval_log(actor_id);
+CREATE INDEX IF NOT EXISTS idx_approval_log_actor ON approval_log(actor_id);
 CREATE INDEX IF NOT EXISTS idx_approval_log_created ON approval_log(created_at DESC);
 
 -- Step 4: Enable Row Level Security
@@ -40,8 +33,8 @@ CREATE POLICY "Dept heads can view approval logs"
   USING (
     get_my_role() = 'dept_head'
     AND student_id IN (
-      SELECT id FROM profiles
-      WHERE department_id = get_my_department()
+      SELECT id FROM profiles 
+      WHERE department_id = get_my_department() 
       AND role = 'student'
     )
   );
@@ -54,8 +47,8 @@ CREATE POLICY "Dept heads can insert approval logs"
     get_my_role() = 'dept_head'
     AND actor_id = auth.uid()
     AND student_id IN (
-      SELECT id FROM profiles
-      WHERE department_id = get_my_department()
+      SELECT id FROM profiles 
+      WHERE department_id = get_my_department() 
       AND role = 'student'
     )
   );
@@ -73,30 +66,29 @@ CREATE POLICY "Admins can insert approval logs"
   WITH CHECK (get_my_role() = 'admin');
 
 -- Step 6: Verify table created successfully
-SELECT
+SELECT 
   'Table created successfully' AS status,
   COUNT(*) AS row_count
 FROM approval_log;
 
 -- Step 7: Verify RLS enabled
-SELECT
+SELECT 
   tablename,
   rowsecurity AS rls_enabled
-FROM pg_tables
+FROM pg_tables 
 WHERE tablename = 'approval_log';
 
 -- Step 8: Verify indexes created
-SELECT
+SELECT 
   indexname,
   indexdef
-FROM pg_indexes
+FROM pg_indexes 
 WHERE tablename = 'approval_log'
 ORDER BY indexname;
 
 -- ============================================================================
 -- MIGRATION COMPLETE
 -- ============================================================================
--- Expected output from Step 6: status = 'Table created successfully', row_count = 0
--- Expected output from Step 7: tablename = 'approval_log', rls_enabled = true
--- Expected output from Step 8: 3 indexes (student, actor, created_at)
+-- The approval_log table is now ready to use.
+-- Phase 3 will update ApplicantsSection to write logs when approving/rejecting.
 -- ============================================================================

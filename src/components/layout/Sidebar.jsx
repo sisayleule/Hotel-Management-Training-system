@@ -17,12 +17,7 @@ export const Sidebar = () => {
   const getNavConfig = useRoleStore((state) => state.getNavConfig);
   
   // Get navigation items for current role
-  const { navItems, defaultDashboard } = getNavConfig();
-  const isFnbRole = defaultDashboard === "/app/waiter";
-
-  const handleLogout = () => {
-    logout();
-  };
+  const { navItems } = getNavConfig();
 
   return (
     <aside
@@ -32,7 +27,7 @@ export const Sidebar = () => {
       }`}
     >
       {/* Top Navigation Links */}
-      <div className="flex-1 min-h-0 overflow-y-auto py-4">
+      <div className="flex-1 overflow-y-auto py-4">
         {/* Collapsed Toggle Button */}
         <button
           id="btn-sidebar-collapse"
@@ -85,33 +80,18 @@ export const Sidebar = () => {
       </div>
 
       {/* Logout Footer */}
-      <div className="shrink-0 p-3 border-t border-ids-border/30">
-        {isFnbRole ? (
-          <Link
-            id="sidebar-logout-btn"
-            to="/app/waiter"
-            className={`w-full flex items-center py-2 px-3 rounded hover:bg-red-900/40 text-red-300 transition-colors text-xs font-semibold ${
-              isCollapsed ? "justify-center" : "space-x-3"
-            }`}
-            title="Return to F&B dashboard"
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            {!isCollapsed && <span>Logout</span>}
-          </Link>
-        ) : (
-          <button
-            id="sidebar-logout-btn"
-            type="button"
-            onClick={handleLogout}
-            className={`w-full flex items-center py-2 px-3 rounded hover:bg-red-900/40 text-red-300 transition-colors text-xs font-semibold ${
-              isCollapsed ? "justify-center" : "space-x-3"
-            }`}
-            title="Logout Session"
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            {!isCollapsed && <span>Logout</span>}
-          </button>
-        )}
+      <div className="p-3 border-t border-ids-border/30">
+        <button
+          id="sidebar-logout-btn"
+          onClick={logout}
+          className={`w-full flex items-center py-2 px-3 rounded hover:bg-red-900/40 text-red-300 transition-colors text-xs font-semibold ${
+            isCollapsed ? "justify-center" : "space-x-3"
+          }`}
+          title="Logout Session"
+        >
+          <LogOut className="w-4 h-4 shrink-0" />
+          {!isCollapsed && <span>Logout</span>}
+        </button>
       </div>
     </aside>
   );

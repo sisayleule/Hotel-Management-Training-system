@@ -39,7 +39,7 @@ USING (
     EXISTS (
       SELECT 1 FROM profiles dept_head
       WHERE dept_head.id = auth.uid()
-      AND dept_head.role = 'dept_head'
+      AND dept_head.auth_role = 'dept_head'
       AND profiles.department_id = dept_head.department_id
       AND profiles.role = 'student'
     )

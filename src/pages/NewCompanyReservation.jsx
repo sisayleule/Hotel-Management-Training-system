@@ -20,7 +20,6 @@ export const NewCompanyReservation = () => {
   
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [isCompanyPopupOpen, setIsCompanyPopupOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
   const todayStr = getTodayString();
   const tomorrowStr = getFutureDate(1);
@@ -100,7 +99,7 @@ export const NewCompanyReservation = () => {
     setValue("total_amount", totalAmount);
   }, [watchRoomRate, watchNights, watchDiscountPercent, watchTaxPercent, watchServiceChargePercent, setValue]);
 
-  const onFormSubmit = async (data) => {
+  const onFormSubmit = (data) => {
     if (!selectedCompany) {
       toast.error("Please select a company!");
       return;
@@ -111,6 +110,7 @@ export const NewCompanyReservation = () => {
       company_code: selectedCompany.company_code,
       status: "confirmed",
       rooms_assigned: [],
+      // Map form fields to reservation fields
       rate: Number(data.roomRate),
       rate_code: data.rateCode,
       meal_plan: data.mealPlan,
@@ -120,16 +120,9 @@ export const NewCompanyReservation = () => {
       service_charge_percent: Number(data.serviceChargePercent) || 0
     };
 
-    setSubmitting(true);
-    try {
-      const resNo = await createReservation(resPayload);
-      toast.success(`✅ Company Reservation ${resNo} created for ${selectedCompany.name}!`);
-      navigate("/app/reservations");
-    } catch (err) {
-      toast.error(`Failed to create reservation: ${err.message}`);
-    } finally {
-      setSubmitting(false);
-    }
+    const resNo = createReservation(resPayload);
+    toast.success(`✅ Company Reservation ${resNo} created for ${selectedCompany.name}!`);
+    navigate("/reservations");
   };
 
   const formRef = useEnterAsTab({ onSubmit: handleSubmit(onFormSubmit) });
@@ -373,7 +366,7 @@ export const NewCompanyReservation = () => {
         <div className="flex justify-end space-x-4">
           <button
             type="button"
-            onClick={() => navigate("/app/reservations")}
+            onClick={() => navigate("/reservations")}
             className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-lg transition-colors flex items-center space-x-2"
           >
             <X className="w-4 h-4" />
@@ -382,11 +375,11 @@ export const NewCompanyReservation = () => {
           
           <button
             type="submit"
-            disabled={!selectedCompany || submitting}
+            disabled={!selectedCompany}
             className="px-8 py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold rounded-lg shadow-lg transition-colors flex items-center space-x-2"
           >
             <Save className="w-4 h-4" />
-            <span>{submitting ? "Saving…" : "Create Company Reservation"}</span>
+            <span>Create Company Reservation</span>
           </button>
         </div>
       </form>

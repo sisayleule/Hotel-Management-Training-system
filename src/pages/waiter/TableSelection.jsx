@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, LogOut } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useHotelStore } from "../../store/useHotelStore";
 
@@ -68,10 +68,6 @@ const TableSelection = () => {
     }
   };
 
-  const handleLogout = () => {
-    navigate("/app/waiter");
-  };
-
   // Conditional breadcrumb
   const getBreadcrumb = () => {
     if (outletId === "restaurant") {
@@ -86,27 +82,17 @@ const TableSelection = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={handleBack}
-                className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft size={20} />
-                <span className="font-semibold">BACK</span>
-              </button>
-              <h1 className="text-2xl font-bold" style={{ color: "#ff8c42" }}>
-                SELECT TABLE
-              </h1>
-            </div>
+          <div className="flex items-center gap-4 mb-2">
             <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 border border-gray-300 hover:bg-gray-100 rounded-lg transition-colors"
-              aria-label="Return to F&B dashboard"
+              onClick={handleBack}
+              className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <LogOut size={18} />
-              <span className="font-semibold text-sm">LOGOUT</span>
+              <ArrowLeft size={20} />
+              <span className="font-semibold">BACK</span>
             </button>
+            <h1 className="text-2xl font-bold" style={{ color: "#ff8c42" }}>
+              SELECT TABLE
+            </h1>
           </div>
           <div className="text-sm text-gray-600">
             <span className="font-semibold">{getBreadcrumb()}</span>

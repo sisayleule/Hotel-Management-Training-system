@@ -271,7 +271,7 @@ const MenuItems = () => {
     setCurrentOrder([]);
     clearTempOrder();
     setViewMode("menu");
-    navigate("/app/waiter");
+    navigate("/waiter");
   };
 
   const canSubmit = currentOrder.length > 0;

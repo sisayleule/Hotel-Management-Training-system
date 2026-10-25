@@ -17,7 +17,7 @@ export const ApplicantsSection = () => {
   });
 
   useEffect(() => {
-    if (profile) {
+    if (profile?.department_id) {
       fetchPendingStudents();
     }
   }, [profile]);
@@ -25,26 +25,21 @@ export const ApplicantsSection = () => {
   const fetchPendingStudents = async () => {
     setLoading(true);
     try {
-      // Query profiles for pending students
-      let query = supabase
+      // Query profiles for pending students in this department
+      const { data, error } = await supabase
         .from('profiles')
         .select(`
           id,
           full_name,
-          university_id,
+          email,
           created_at,
           department_id
         `)
         .eq('role', 'student')
         .eq('status', 'pending')
+        .eq('department_id', profile.department_id)
         .order('created_at', { ascending: false });
 
-      // Only filter by department if the dept head has one assigned
-      if (profile?.department_id) {
-        query = query.eq('department_id', profile.department_id);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
 
       setPendingStudents(data || []);
@@ -223,7 +218,7 @@ export const ApplicantsSection = () => {
                       Student Name
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                      University ID
+                      Email
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                       Registered
@@ -248,7 +243,8 @@ export const ApplicantsSection = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-mono text-gray-800 font-semibold">{student.university_id || 'N/A'}
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {student.email}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
                         {formatDate(student.created_at)}

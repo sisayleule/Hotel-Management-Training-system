@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useSupabaseAuth } from '../../contexts/AuthContext';
-import { Users, Search, Ban, Trash2, CheckCircle, XCircle, Clock, AlertTriangle, ShieldCheck, KeyRound, Copy, Eye, EyeOff } from 'lucide-react';
+import { Users, Search, Ban, Trash2, CheckCircle, XCircle, Clock, AlertTriangle, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ReasonModal } from '../../components/dept-head/ReasonModal';
 import { DeleteConfirmModal } from '../../components/dept-head/DeleteConfirmModal';
@@ -32,20 +32,8 @@ export const UsersSection = () => {
     loading: false,
   });
 
-  // Reset password modal — two phases:
-  //   phase: 'confirm'  → ask dept head to confirm the action
-  //   phase: 'result'   → show the generated temp password once
-  const [resetModalState, setResetModalState] = useState({
-    isOpen:      false,
-    phase:       'confirm',   // 'confirm' | 'result'
-    student:     null,
-    loading:     false,
-    tempPassword: null,
-    showPassword: false,
-  });
-
   useEffect(() => {
-    if (profile) {
+    if (profile?.department_id) {
       fetchStudents();
     }
   }, [profile]);
@@ -69,7 +57,7 @@ export const UsersSection = () => {
         .select(`
           id,
           full_name,
-          university_id,
+          email,
           status,
           created_at,
           rejected_reason,
@@ -105,7 +93,9 @@ export const UsersSection = () => {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(student =>
         student.full_name.toLowerCase().includes(query) ||
-        (student.university_id && student.university_id.toLowerCase().includes(query))
+        student.email?.toLowerCase().includes(query) ||
+        // Also search by student_id if it exists (post-migration)
+        (student.student_id && student.student_id.toLowerCase().includes(query))
       );
     }
 
@@ -166,67 +156,6 @@ export const UsersSection = () => {
       student: null,
       loading: false,
     });
-  };
-
-  // ── Reset Password handlers ───────────────────────────────────────────────
-  const openResetModal = (student) => {
-    setResetModalState({
-      isOpen:       true,
-      phase:        'confirm',
-      student,
-      loading:      false,
-      tempPassword: null,
-      showPassword: false,
-    });
-  };
-
-  const closeResetModal = () => {
-    if (resetModalState.loading) return;
-    setResetModalState({
-      isOpen:       false,
-      phase:        'confirm',
-      student:      null,
-      loading:      false,
-      tempPassword: null,
-      showPassword: false,
-    });
-  };
-
-  const handleResetPassword = async () => {
-    const { student } = resetModalState;
-    setResetModalState(prev => ({ ...prev, loading: true }));
-
-    try {
-      // Call the edge function — passes the dept head's JWT automatically.
-      // The service-role key never touches the frontend; it lives in Deno env only.
-      const { data, error } = await supabase.functions.invoke(
-        'reset-student-password',
-        { body: { student_id: student.id } }
-      );
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      // Move to result phase — show the temp password once
-      setResetModalState(prev => ({
-        ...prev,
-        loading:      false,
-        phase:        'result',
-        tempPassword: data.temp_password,
-      }));
-
-    } catch (err) {
-      console.error('Password reset failed:', err);
-      toast.error(`Password reset failed: ${err.message}`);
-      setResetModalState(prev => ({ ...prev, loading: false }));
-    }
-  };
-
-  const copyTempPassword = () => {
-    if (!resetModalState.tempPassword) return;
-    navigator.clipboard.writeText(resetModalState.tempPassword)
-      .then(() => toast.success('Temporary password copied to clipboard'))
-      .catch(() => toast.error('Could not copy — please select and copy manually'));
   };
 
   const handleBan = async (reason) => {
@@ -495,7 +424,10 @@ export const UsersSection = () => {
                       Student Name
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                      University ID
+                      Student ID
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                      Email
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                       Status
@@ -524,7 +456,13 @@ export const UsersSection = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-mono text-gray-800 font-semibold">
-                        {student.university_id || 'N/A'}
+                        {student.student_id || 'N/A'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{student.email}</div>
+                        {student.student_id && (
+                          <div className="text-xs text-gray-500">ID: {student.student_id}</div>
+                        )}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         {getStatusBadge(student.status)}
@@ -534,18 +472,6 @@ export const UsersSection = () => {
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-center">
                         <div className="flex items-center justify-center space-x-2">
-                          {/* Reset Password — approved students only */}
-                          {student.status === 'approved' && (
-                            <button
-                              onClick={() => openResetModal(student)}
-                              className="inline-flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded transition-colors"
-                              title="Reset Student Password"
-                            >
-                              <KeyRound className="w-4 h-4 mr-1" />
-                              Reset PW
-                            </button>
-                          )}
-
                           {/* Ban button - only for approved students */}
                           {student.status === 'approved' && (
                             <button
@@ -620,149 +546,6 @@ export const UsersSection = () => {
         studentName={deleteModalState.student?.full_name || ''}
         loading={deleteModalState.loading}
       />
-
-      {/* ── Reset Password Modal ─────────────────────────────────────────── */}
-      {resetModalState.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md border border-gray-200 overflow-hidden">
-
-            {/* Header */}
-            <div className="bg-indigo-600 px-6 py-4 flex items-center gap-3">
-              <KeyRound className="w-5 h-5 text-white shrink-0" />
-              <h3 className="text-white font-bold text-base">
-                {resetModalState.phase === 'confirm'
-                  ? 'Reset Student Password'
-                  : 'Temporary Password Generated'}
-              </h3>
-            </div>
-
-            {/* ── PHASE: confirm ── */}
-            {resetModalState.phase === 'confirm' && (
-              <div className="px-6 py-5 space-y-4">
-                <p className="text-sm text-gray-700">
-                  You are about to reset the password for:
-                </p>
-                <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 flex items-center gap-3">
-                  <div className="h-9 w-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
-                    {resetModalState.student?.full_name?.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="font-bold text-indigo-900 text-sm">
-                      {resetModalState.student?.full_name}
-                    </p>
-                    <p className="text-indigo-600 text-xs font-mono">
-                      {resetModalState.student?.university_id || 'No University ID'}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 leading-relaxed">
-                  A secure temporary password will be generated. You must share it
-                  with the student through a secure channel. The password will be
-                  shown <strong>once only</strong> and is not stored anywhere.
-                </p>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={closeResetModal}
-                    disabled={resetModalState.loading}
-                    className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-sm rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleResetPassword}
-                    disabled={resetModalState.loading}
-                    className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {resetModalState.loading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Resetting…
-                      </>
-                    ) : (
-                      <>
-                        <KeyRound className="w-4 h-4" />
-                        Generate Password
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ── PHASE: result ── */}
-            {resetModalState.phase === 'result' && (
-              <div className="px-6 py-5 space-y-4">
-                <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-800 font-medium leading-relaxed">
-                    This password is shown <strong>once only</strong>. Copy it now
-                    and share it with <strong>{resetModalState.student?.full_name}</strong> through
-                    a secure channel. It will not be retrievable after you close this dialog.
-                  </p>
-                </div>
-
-                {/* Password display box */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                    Temporary Password
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-900 text-green-400 font-mono font-bold text-lg px-4 py-3 rounded-lg tracking-widest select-all">
-                      {resetModalState.showPassword
-                        ? resetModalState.tempPassword
-                        : '••••••••••••'}
-                    </div>
-                    <button
-                      onClick={() =>
-                        setResetModalState(prev => ({
-                          ...prev,
-                          showPassword: !prev.showPassword,
-                        }))
-                      }
-                      className="p-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                      title={resetModalState.showPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {resetModalState.showPassword
-                        ? <EyeOff className="w-4 h-4 text-gray-600" />
-                        : <Eye className="w-4 h-4 text-gray-600" />}
-                    </button>
-                    <button
-                      onClick={copyTempPassword}
-                      className="p-2.5 bg-indigo-100 hover:bg-indigo-200 rounded-lg transition-colors"
-                      title="Copy to clipboard"
-                    >
-                      <Copy className="w-4 h-4 text-indigo-700" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 space-y-1">
-                  <p className="text-xs text-gray-500 font-medium">Student logs in with:</p>
-                  <p className="text-xs font-mono text-gray-700">
-                    ID: <span className="font-bold">{resetModalState.student?.university_id}</span>
-                  </p>
-                  <p className="text-xs font-mono text-gray-700">
-                    Password: <span className="font-bold">
-                      {resetModalState.showPassword
-                        ? resetModalState.tempPassword
-                        : '(shown above)'}
-                    </span>
-                  </p>
-                </div>
-
-                <button
-                  onClick={closeResetModal}
-                  className="w-full px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-lg transition-colors"
-                >
-                  I have noted this down — Close
-                </button>
-              </div>
-            )}
-
-          </div>
-        </div>
-      )}
     </div>
   );
 };

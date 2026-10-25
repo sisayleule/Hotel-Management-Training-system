@@ -72,7 +72,7 @@ export const Cashiering = () => {
                   <tr
                     key={res.reservation_no}
                     id={`ledger-row-${res.reservation_no}`}
-                    onClick={() => navigate(`/app/reservations/${res.reservation_no}`)}
+                    onClick={() => navigate(`/reservations/${res.reservation_no}`)}
                     className="hover:bg-ids-bg/30 cursor-pointer transition-colors font-sans"
                   >
                     <td className="px-4 py-3 font-mono font-bold text-orange-600 text-sm">
@@ -97,7 +97,7 @@ export const Cashiering = () => {
                       <RequirePermission permission={PERMISSIONS.BILLING_POST_CHARGES}>
                         <button
                           id={`btn-open-cashier-folio-${res.reservation_no}`}
-                          onClick={() => navigate(`/app/reservations/${res.reservation_no}`)}
+                          onClick={() => navigate(`/reservations/${res.reservation_no}`)}
                           className="px-3 py-1 bg-ids-header hover:bg-ids-sidebar text-white font-bold text-[10px] rounded flex items-center justify-center space-x-1 shadow-2xs mx-auto"
                         >
                           <CreditCard className="w-3.5 h-3.5" />

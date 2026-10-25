@@ -119,7 +119,7 @@ export const LandingPage = () => {
         </div>
 
         {/* Hero Content */}
-        <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-12 w-full pt-28">
+        <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-12 w-full pt-20">
           <div className="max-w-2xl space-y-6">
             {/* University Badge */}
             <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">

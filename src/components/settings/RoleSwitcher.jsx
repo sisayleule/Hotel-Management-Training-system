@@ -7,7 +7,7 @@
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { ROLES, NAV_CONFIG } from "../../config/rbac.js";
+import { ROLES } from "../../config/rbac.js";
 import { useRoleStore } from "../../store/useRoleStore.js";
 import { usePermissions } from "../../hooks/usePermissions.js";
 import * as LucideIcons from "lucide-react";
@@ -17,12 +17,11 @@ export const RoleSwitcher = () => {
   const navigate = useNavigate();
   const { currentRole } = usePermissions();
   const setRole = useRoleStore((state) => state.setRole);
+  const getNavConfig = useRoleStore((state) => state.getNavConfig);
   
   const handleSwitchRole = (roleId) => {
     setRole(roleId);
-    // Read NAV_CONFIG directly with the NEW roleId — not via getNavConfig()
-    // which still returns the OLD role's config before the store update lands
-    const navConfig = NAV_CONFIG[roleId] || NAV_CONFIG.hotel_manager;
+    const navConfig = getNavConfig();
     navigate(navConfig.defaultDashboard);
     
     const role = ROLES.find(r => r.id === roleId);

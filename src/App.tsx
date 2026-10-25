@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "./hooks/useAuth.js";
-import { useSupabaseAuth } from "./contexts/AuthContext";
 import AppLayout from "./components/layout/AppLayout.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
 import DemoLogin from "./pages/Login.jsx"; // Renamed for clarity - legacy demo mode
@@ -32,7 +31,6 @@ import HouseKeeping from "./pages/HouseKeeping.jsx";
 import HousekeepingOperations from "./pages/HousekeepingOperations.jsx";
 import Reports from "./pages/Reports.jsx";
 import Settings from "./pages/Settings.jsx";
-import ChangePassword from "./pages/ChangePassword.jsx";
 import NotFound from "./pages/NotFound.jsx";
 import DiagnosticPage from "./pages/DiagnosticPage.jsx";
 import WaiterLanding from "./pages/waiter/WaiterLanding.jsx";
@@ -42,53 +40,16 @@ import TableSelection from "./pages/waiter/TableSelection.jsx";
 import MenuItems from "./pages/waiter/MenuItems.jsx";
 import { ProtectedRoute as RBACProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
 import { PERMISSIONS } from "./config/rbac.js";
-import { useRoleStore } from "./store/useRoleStore.js";
 
 // Route Guard for Authenticated Pages
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useAuth();
-  const { loading } = useSupabaseAuth();
-
-  // Wait for AuthContext to finish resolving the session before deciding
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ids-header mx-auto"></div>
-          <p className="mt-4 text-gray-600 text-sm font-semibold">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   return isAuthenticated ? children : <Navigate to="/login" replace />;
-};
-
-// Redirect waiter_fnb role away from the hotel dashboard to their own F&B dashboard
-const DashboardOrWaiter = () => {
-  const currentRole = useRoleStore((state) => state.currentRole);
-  if (currentRole === "waiter_fnb") {
-    return <Navigate to="/app/waiter" replace />;
-  }
-  return <Dashboard />;
 };
 
 // Route Guard for Auth Pages (redirect to appropriate dashboard if already logged in)
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, currentUser } = useAuth();
-  const { loading } = useSupabaseAuth();
-
-  // Wait for session to resolve — prevents the login page flashing before redirect
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ids-header mx-auto"></div>
-          <p className="mt-4 text-gray-600 text-sm font-semibold">Loading...</p>
-        </div>
-      </div>
-    );
-  }
   
   if (!isAuthenticated) {
     return children;
@@ -185,7 +146,7 @@ export default function App() {
         >
           {/* Default entrypoint redirects to dashboard */}
           <Route index element={<Navigate to="/app/dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardOrWaiter />} />
+          <Route path="dashboard" element={<Dashboard />} />
           <Route 
             path="rooms" 
             element={
@@ -316,11 +277,6 @@ export default function App() {
           />
           <Route path="settings" element={<Settings />} />
           <Route path="diagnostic" element={<DiagnosticPage />} />
-          {/* Waiter F&B dashboard inside AppLayout so sidebar is visible */}
-          <Route
-            path="waiter"
-            element={<WaiterLanding />}
-          />
         </Route>
 
         {/* Waiter routes (protected by waiter_fnb role) - OUTSIDE AppLayout for full-screen POS interface */}
@@ -328,7 +284,9 @@ export default function App() {
           path="/waiter"
           element={
             <ProtectedRoute>
-              <WaiterLanding />
+              <RBACProtectedRoute requiredPermissions={[PERMISSIONS.FNB_CREATE_ORDER]}>
+                <WaiterLanding />
+              </RBACProtectedRoute>
             </ProtectedRoute>
           }
         />
@@ -336,7 +294,9 @@ export default function App() {
           path="/waiter/select-outlet"
           element={
             <ProtectedRoute>
-              <OutletSelection />
+              <RBACProtectedRoute requiredPermissions={[PERMISSIONS.FNB_MANAGE_TABLES]}>
+                <OutletSelection />
+              </RBACProtectedRoute>
             </ProtectedRoute>
           }
         />
@@ -344,7 +304,9 @@ export default function App() {
           path="/waiter/select-restaurant"
           element={
             <ProtectedRoute>
-              <RestaurantSelection />
+              <RBACProtectedRoute requiredPermissions={[PERMISSIONS.FNB_MANAGE_TABLES]}>
+                <RestaurantSelection />
+              </RBACProtectedRoute>
             </ProtectedRoute>
           }
         />
@@ -352,7 +314,9 @@ export default function App() {
           path="/waiter/select-table"
           element={
             <ProtectedRoute>
-              <TableSelection />
+              <RBACProtectedRoute requiredPermissions={[PERMISSIONS.FNB_MANAGE_TABLES]}>
+                <TableSelection />
+              </RBACProtectedRoute>
             </ProtectedRoute>
           }
         />
@@ -360,24 +324,16 @@ export default function App() {
           path="/waiter/menu"
           element={
             <ProtectedRoute>
-              <MenuItems />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Force password change — shown to any logged-in user with must_change_password=true */}
-        {/* Uses base ProtectedRoute only (requires login) — no RBAC wrapper, no AppLayout */}
-        <Route
-          path="/change-password"
-          element={
-            <ProtectedRoute>
-              <ChangePassword />
+              <RBACProtectedRoute requiredPermissions={[PERMISSIONS.FNB_CREATE_ORDER]}>
+                <MenuItems />
+              </RBACProtectedRoute>
             </ProtectedRoute>
           }
         />
 
         {/* Catch-all fallback */}
-        <Route path="*" element={<NotFound />} />      </Routes>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
       </BrowserRouter>
     </AuthProvider>
   );
