@@ -412,7 +412,7 @@ export const Reservations = () => {
             </div>
             <RequirePermission permission={PERMISSIONS.RESERVATIONS_CREATE}>
               <button
-                onClick={() => navigate("/reservations/new")}
+                onClick={() => navigate("/app/reservations/new")}
                 className="px-4 py-1.5 bg-ids-sidebar hover:bg-ids-sidebar-hover text-white font-bold uppercase rounded transition-colors"
               >
                 + Create Booking

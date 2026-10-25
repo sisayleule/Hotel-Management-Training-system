@@ -16,7 +16,7 @@ export const NewReservation = () => {
           
           {/* Individual Reservation Card */}
           <button
-            onClick={() => navigate("/reservations/new/individual")}
+            onClick={() => navigate("/app/reservations/new/individual")}
             className="group bg-white border-3 border-blue-300 rounded-xl p-8 hover:shadow-2xl hover:scale-105 transition-all duration-300 text-left"
           >
             <div className="flex flex-col items-center text-center space-y-4">
@@ -41,7 +41,7 @@ export const NewReservation = () => {
 
           {/* Company Reservation Card */}
           <button
-            onClick={() => navigate("/reservations/new/company")}
+            onClick={() => navigate("/app/reservations/new/company")}
             className="group bg-white border-3 border-orange-300 rounded-xl p-8 hover:shadow-2xl hover:scale-105 transition-all duration-300 text-left"
           >
             <div className="flex flex-col items-center text-center space-y-4">
