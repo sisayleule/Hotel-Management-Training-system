@@ -11,7 +11,6 @@ import { ROLES } from "../../config/rbac.js";
 import { useRoleStore } from "../../store/useRoleStore.js";
 import { usePermissions } from "../../hooks/usePermissions.js";
 import * as LucideIcons from "lucide-react";
-import toast from "react-hot-toast";
 
 export const RoleSwitcher = () => {
   const navigate = useNavigate();
@@ -23,9 +22,6 @@ export const RoleSwitcher = () => {
     setRole(roleId);
     const navConfig = getNavConfig();
     navigate(navConfig.defaultDashboard);
-    
-    const role = ROLES.find(r => r.id === roleId);
-    toast.success(`Switched to: ${role.name}`);
   };
   
   return (

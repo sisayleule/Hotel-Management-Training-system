@@ -4,7 +4,7 @@ import { Toaster } from "react-hot-toast";
 import TopHeader from "./TopHeader.jsx";
 import Sidebar from "./Sidebar.jsx";
 import BottomNav from "./BottomNav.jsx";
-import DemoModeBadge from "./DemoModeBadge.jsx";
+
 
 export const AppLayout = () => {
   return (
@@ -33,10 +33,7 @@ export const AppLayout = () => {
       {/* Top Header Bar */}
       <TopHeader />
       
-      {/* Demo Mode Badge */}
-      <DemoModeBadge />
-
-      {/* Middle Core Area */}
+{/* Middle Core Area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Side Desktop Bar */}
         <Sidebar />
