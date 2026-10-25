@@ -137,7 +137,7 @@ export const NewIndividualReservation = () => {
 
     const resNo = createReservation(resPayload);
     toast.success(`✅ Individual Reservation ${resNo} created successfully!`);
-    navigate("/reservations");
+    navigate("/app/reservations");
   };
 
   const handleContinueWithExisting = () => {
@@ -406,7 +406,7 @@ export const NewIndividualReservation = () => {
         <div className="flex justify-end space-x-4">
           <button
             type="button"
-            onClick={() => navigate("/reservations")}
+            onClick={() => navigate("/app/reservations")}
             className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-lg transition-colors flex items-center space-x-2"
           >
             <X className="w-4 h-4" />

@@ -322,7 +322,7 @@ export const AmendBooking = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-ids-border pb-3 gap-3 select-none">
           <div className="flex items-center space-x-3">
             <button
-              onClick={() => navigate("/reservations")}
+              onClick={() => navigate("/app/reservations")}
               className="p-1.5 hover:bg-gray-100 rounded-full cursor-pointer text-gray-500 hover:text-gray-900"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -759,7 +759,7 @@ export const AmendBooking = () => {
                   Cancel
                 </button>
                 <button
-                  onClick={() => navigate("/reservations")}
+                  onClick={() => navigate("/app/reservations")}
                   className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-ids-border font-bold uppercase text-[11px] rounded tracking-wider transition-colors cursor-pointer"
                 >
                   Back to Reservations

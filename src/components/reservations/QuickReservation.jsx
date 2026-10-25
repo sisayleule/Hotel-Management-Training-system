@@ -264,7 +264,7 @@ export const QuickReservation = ({ isOpen = true, onClose }) => {
 
     // Always navigate to reservations list after successful creation
     if (onClose) onClose(); // Close modal if it exists
-    navigate("/reservations"); // Always navigate to refresh the list
+    navigate("/app/reservations"); // Always navigate to refresh the list
   };
 
   const handleContinueWithExistingGuest = () => {
@@ -328,7 +328,7 @@ export const QuickReservation = ({ isOpen = true, onClose }) => {
           </div>
           <button
             type="button"
-            onClick={onClose || (() => navigate("/reservations"))}
+            onClick={onClose || (() => navigate("/app/reservations"))}
             className="text-white/80 hover:text-white p-1 rounded-full cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -658,7 +658,7 @@ export const QuickReservation = ({ isOpen = true, onClose }) => {
           <div className="flex justify-end space-x-2 pt-2 border-t border-ids-border/40 sticky bottom-0 bg-white py-2 shrink-0">
             <button
               type="button"
-              onClick={onClose || (() => navigate("/reservations"))}
+              onClick={onClose || (() => navigate("/app/reservations"))}
               className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold uppercase rounded border border-ids-border tracking-wider transition-colors cursor-pointer"
             >
               Cancel

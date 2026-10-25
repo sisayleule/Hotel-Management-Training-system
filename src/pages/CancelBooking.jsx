@@ -266,7 +266,7 @@ export const CancelBooking = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-ids-border pb-3 gap-3 select-none">
           <div className="flex items-center space-x-3">
             <button
-              onClick={() => navigate("/reservations")}
+              onClick={() => navigate("/app/reservations")}
               className="p-1.5 hover:bg-gray-100 rounded-full cursor-pointer text-gray-500 hover:text-gray-900"
             >
               <ArrowLeft className="w-5 h-5" />

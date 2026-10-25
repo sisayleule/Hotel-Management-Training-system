@@ -31,7 +31,7 @@ export const ReservationDetail = () => {
           <p className="text-sm text-gray-500 font-sans mb-4">No folio matches reservation number {id}.</p>
           <button
             id="btn-error-back"
-            onClick={() => navigate("/reservations")}
+            onClick={() => navigate("/app/reservations")}
             className="px-4 py-2 bg-ids-header text-white font-bold rounded text-xs"
           >
             Back to Directory
@@ -99,7 +99,7 @@ export const ReservationDetail = () => {
       action={
         <button
           id="btn-back-to-list"
-          onClick={() => navigate("/reservations")}
+          onClick={() => navigate("/app/reservations")}
           className="px-3 py-1.5 border border-ids-border hover:bg-gray-100 rounded text-xs font-bold font-sans text-gray-600 flex items-center space-x-1.5 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
