@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Hotel, Mail, Lock, ArrowRight, Home } from 'lucide-react';
+import { Lock, ArrowRight, Home, IdCard } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useSupabaseAuth } from '../contexts/AuthContext';
 import { useEnterAsTab } from '../hooks/useEnterAsTab';
 import toast from 'react-hot-toast';
 
 export const SupabaseLogin = () => {
-  const [email, setEmail] = useState('');
+  const [studentId, setStudentId] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [loginAttempted, setLoginAttempted] = useState(false);
@@ -18,18 +18,16 @@ export const SupabaseLogin = () => {
 
   // Show status message from ProtectedRoute if redirected due to mid-session status change
   useEffect(() => {
-    // Only show once per mount using ref
     if (statusAlertShownRef.current) return;
-    
+
     if (location.state?.statusReason) {
       const status = location.state.statusReason;
       const bannedReason = location.state.bannedReason;
       const rejectedReason = location.state.rejectedReason;
-      
+
       showStatusAlert(status, bannedReason, rejectedReason);
       statusAlertShownRef.current = true;
-      
-      // Clear the state so back button doesn't re-show it
+
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
@@ -54,7 +52,7 @@ export const SupabaseLogin = () => {
     if (profile && profile.status === 'approved' && loginAttempted) {
       console.log('[SupabaseLogin] Profile approved, navigating to dashboard. Role:', profile.role);
       toast.success(`Welcome back, ${profile.full_name}!`);
-      
+
       if (profile.role === 'admin') {
         navigate('/admin');
       } else if (profile.role === 'dept_head') {
@@ -62,7 +60,7 @@ export const SupabaseLogin = () => {
       } else {
         navigate('/dashboard');
       }
-      
+
       setLoading(false);
       setLoginAttempted(false);
     }
@@ -71,7 +69,7 @@ export const SupabaseLogin = () => {
   const showStatusAlert = (status, bannedReason, rejectedReason) => {
     let errorTitle = '⛔ ACCESS DENIED';
     let errorMessage = 'Your account cannot access the system. Please contact your administrator.';
-    
+
     if (status === 'pending') {
       errorTitle = '⚠️ ACCOUNT PENDING APPROVAL';
       errorMessage = 'Your registration is awaiting approval from your department head. You cannot access the system until your account is approved.\n\nPlease contact your department head for approval status.';
@@ -91,7 +89,7 @@ export const SupabaseLogin = () => {
       errorTitle = '⛔ ACCOUNT DISABLED';
       errorMessage = 'Your account has been disabled by administration. Please contact your system administrator for assistance.\n\nAccess to the system has been revoked.';
     }
-    
+
     toast.error(
       `${errorTitle}\n\n${errorMessage}`,
       {
@@ -115,9 +113,8 @@ export const SupabaseLogin = () => {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation
-    if (!email.trim()) {
-      toast.error('Please enter your email');
+    if (!studentId.trim()) {
+      toast.error('Please enter your Student ID');
       return;
     }
     if (!password) {
@@ -127,47 +124,52 @@ export const SupabaseLogin = () => {
 
     setLoading(true);
     setLoginAttempted(true);
-    statusAlertShownRef.current = false; // Reset for new login attempt
+    statusAlertShownRef.current = false;
 
     try {
-      // Simply call signInWithPassword - AuthContext will handle status gating
+      // Look up the email associated with this student ID
+      const { data: profileData, error: lookupError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('student_id', studentId.trim())
+        .single();
+
+      if (lookupError || !profileData) {
+        toast.error('Student ID not found. Please check your ID or register first.');
+        setLoading(false);
+        setLoginAttempted(false);
+        return;
+      }
+
+      // Sign in using the email retrieved from the profile
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: profileData.email,
         password,
       });
 
       if (authError) throw authError;
 
-      // Success! AuthContext will:
-      // 1. Fetch profile
-      // 2. Check status
-      // 3. Either approve (set profile) or reject (set authStatusRejection)
-      // 4. useEffect above will handle navigation or alert display
-      
+      // AuthContext takes over: fetches profile, checks status, navigates or rejects
     } catch (error) {
       console.error('Login error:', error);
       if (error.message.includes('Invalid login credentials')) {
-        toast.error('Invalid email or password');
+        toast.error('Incorrect password. Please try again.');
       } else {
         toast.error(error.message || 'Login failed. Please try again.');
       }
       setLoading(false);
       setLoginAttempted(false);
     }
-    // Note: Don't setLoading(false) on success - let useEffect handle it after profile loads
   };
 
-  // Apply Enter-as-Tab navigation
   const formRef = useEnterAsTab({ onSubmit: handleLoginSubmit });
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-gradient-to-b from-ids-bg to-[#e9dec9] text-gray-800 p-4 safe-padding-bottom">
-      {/* Centered login card */}
       <div className="flex-1 flex items-center justify-center py-10">
         <div className="bg-white border border-ids-border w-full max-w-md rounded shadow-xl overflow-hidden">
-          {/* Logo Brand Header */}
+          {/* Header */}
           <div className="bg-ids-sidebar text-ids-sidebar-text p-6 text-center border-b border-ids-border relative">
-            {/* Back to Home Button */}
             <button
               onClick={() => navigate('/')}
               className="absolute left-4 top-4 p-2 hover:bg-white/10 rounded-full transition-colors group"
@@ -175,11 +177,11 @@ export const SupabaseLogin = () => {
             >
               <Home className="w-5 h-5 text-white/70 group-hover:text-white" />
             </button>
-            
+
             <div className="flex justify-center mb-3">
-              <img 
-                src="/images/ambo-university-logo.png" 
-                alt="Ambo University" 
+              <img
+                src="/images/ambo-university-logo.png"
+                alt="Ambo University"
                 className="h-16 w-16 object-contain"
               />
             </div>
@@ -190,23 +192,24 @@ export const SupabaseLogin = () => {
             </p>
           </div>
 
-          {/* Form Area */}
+          {/* Form */}
           <form ref={formRef} onSubmit={handleLoginSubmit} className="p-6 space-y-4">
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                Email Address
+                Student ID
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                  <Mail className="w-4 h-4" />
+                  <IdCard className="w-4 h-4" />
                 </span>
                 <input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  placeholder="Enter your Student ID"
+                  value={studentId}
+                  onChange={(e) => setStudentId(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 border border-ids-border rounded focus:outline-none focus:ring-1 focus:ring-ids-header focus:border-ids-header bg-gray-50 text-sm"
                   disabled={loading}
+                  autoComplete="username"
                 />
               </div>
             </div>
@@ -226,11 +229,11 @@ export const SupabaseLogin = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 border border-ids-border rounded focus:outline-none focus:ring-1 focus:ring-ids-header focus:border-ids-header bg-gray-50 text-sm"
                   disabled={loading}
+                  autoComplete="current-password"
                 />
               </div>
             </div>
 
-            {/* Login Button */}
             <div className="pt-2">
               <button
                 type="submit"
@@ -238,7 +241,7 @@ export const SupabaseLogin = () => {
                 className="w-full py-2 px-4 bg-ids-header hover:bg-ids-sidebar text-white text-sm font-bold tracking-wide rounded shadow-sm hover:shadow transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
-                  <span>Logging in...</span>
+                  <span>Signing in...</span>
                 ) : (
                   <>
                     <span>Sign In</span>
@@ -248,7 +251,6 @@ export const SupabaseLogin = () => {
               </button>
             </div>
 
-            {/* Register Link */}
             <div className="text-center pt-2">
               <p className="text-xs text-gray-500">
                 Don't have an account?{' '}
@@ -264,7 +266,6 @@ export const SupabaseLogin = () => {
         </div>
       </div>
 
-      {/* Footer Branding */}
       <footer className="text-center py-4 border-t border-ids-border/30">
         <p className="text-xs font-semibold text-gray-500 tracking-wider">
           Powered by AMOB University Tourism & Hotel Management Dept.
