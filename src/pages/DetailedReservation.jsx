@@ -6,6 +6,7 @@ import { RateGrid } from "../components/reservations/RateGrid.jsx";
 import { GuestTable } from "../components/reservations/GuestTable.jsx";
 import { CompanyLookup } from "../components/reservations/CompanyLookup.jsx";
 import { GuestLookup } from "../components/reservations/GuestLookup.jsx";
+import { GuestReservationSummary } from "../components/reservations/GuestReservationSummary.jsx";
 import { format, parseISO, addDays, differenceInDays, isValid } from "date-fns";
 import {
   ArrowLeft,
@@ -46,12 +47,15 @@ export const DetailedReservation = () => {
     return reservations.find((r) => r.reservation_no === id);
   }, [reservations, id]);
 
+  // Simple / Advanced view toggle (simple = guest-friendly summary)
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   // If not found, load defaults gracefully
   const resvNo = reservation?.reservation_no || id || "RES001";
   const [status, setStatus] = useState(reservation?.status || "confirmed");
 
   // Local editable states synced from reservation
-  const [guestName, setGuestName] = useState(reservation?.guest_name || "Biswakarma Santosh");
+  const [guestName, setGuestName] = useState(reservation?.guest_name || "");
   const [roomType, setRoomType] = useState(reservation?.room_type || "SUI");
   const [arrival, setArrival] = useState(reservation?.arrival || "2026-06-30");
   const [departure, setDeparture] = useState(reservation?.departure || "2026-07-02");
@@ -60,16 +64,16 @@ export const DetailedReservation = () => {
   const [children, setChildren] = useState(reservation?.children || 0);
   const [payMode, setPayMode] = useState(reservation?.pay_mode || "Cash");
   const [rate, setRate] = useState(reservation?.rate || 7499);
-  const [companyCode, setCompanyCode] = useState(reservation?.company_code || "COM0007");
-  const [companyName, setCompanyName] = useState("Mahindra & Mahindra Limited");
+  const [companyCode, setCompanyCode] = useState(reservation?.company_code || "");
+  const [companyName, setCompanyName] = useState(reservation?.company_code ? "" : "");
 
   const [housePlan, setHousePlan] = useState(false);
   const [agentBill, setAgentBill] = useState(false);
   const [directPay, setDirectPay] = useState(false);
 
   // Address and Contact secondary states
-  const [contactPhone, setContactPhone] = useState("022 28849514");
-  const [contactEmail, setContactEmail] = useState("m.mahindra@corporate-mahindra.in");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const [billingInstructions, setBillingInstructions] = useState("Direct Bill to Company");
   const [marketSegment, setMarketSegment] = useState("CV1");
   const [businessSource, setBusinessSource] = useState("MUM");
@@ -77,10 +81,13 @@ export const DetailedReservation = () => {
   // Dynamic Lookup Popups
   const [companyOpen, setCompanyOpen] = useState(false);
   const [guestLookupOpen, setGuestLookupOpen] = useState(false);
-  const [guests, setGuests] = useState([
-    { title: "Mr", last_name: "Biswakarma", middle_name: "", first_name: "Santosh" },
-    { title: "Mrs", last_name: "Rai", middle_name: "", first_name: "Sangeeta" }
-  ]);
+  const [guests, setGuests] = useState(() => {
+    const name = reservation?.guest_name || "";
+    const parts = name.trim().split(" ");
+    const first = parts.slice(0, -1).join(" ") || name;
+    const last  = parts.length > 1 ? parts[parts.length - 1] : "";
+    return [{ title: "Mr", last_name: last, middle_name: "", first_name: first }];
+  });
   const [activeGuestIdx, setActiveGuestIdx] = useState(0);
 
   // Side Tab Panel selection
@@ -154,7 +161,27 @@ export const DetailedReservation = () => {
 
   return (
     <PageWrapper>
+      {/* Simple guest-friendly view (default) */}
+      {!showAdvanced && (
+        <GuestReservationSummary
+          reservation={reservation}
+          onShowAdvanced={() => setShowAdvanced(true)}
+        />
+      )}
+
+      {/* Advanced / full PMS view */}
+      {showAdvanced && (
       <div className="text-xs font-sans text-gray-800 space-y-4" id="detailed-reservation-pms-page">
+
+      {/* Back-to-simple toggle */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowAdvanced(false)}
+          className="text-sm text-ids-header hover:underline font-medium"
+        >
+          ← Back to simple view
+        </button>
+      </div>
       
       {/* Top Breadcrumb Nav & Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-ids-border pb-3 gap-3 select-none">
@@ -183,7 +210,7 @@ export const DetailedReservation = () => {
           <Users className="w-4 h-4 text-gray-400 hover:text-ids-sidebar shrink-0 cursor-pointer" title="Couple" />
           <Ban onClick={handleCancelWorkflow} className="w-4 h-4 text-red-400 hover:text-red-600 shrink-0 cursor-pointer" title="Cancel Reservation" />
           <Eye className="w-4 h-4 text-gray-400 hover:text-ids-sidebar shrink-0 cursor-pointer" title="View Logs" />
-          <Home onClick={() => navigate(`/reservations/assign?id=${resvNo}`)} className="w-4 h-4 text-green-500 hover:text-green-600 shrink-0 cursor-pointer" title="Assign Room Grid" />
+          <Home onClick={() => navigate(`/app/reservations/assign?id=${resvNo}`)} className="w-4 h-4 text-green-500 hover:text-green-600 shrink-0 cursor-pointer" title="Assign Room Grid" />
           <Users className="w-4 h-4 text-gray-400 hover:text-ids-sidebar shrink-0 cursor-pointer" title="Family Plan" />
           <Moon className="w-4 h-4 text-indigo-400 hover:text-indigo-600 shrink-0 cursor-pointer" title="Nights Matrix" />
         </div>
@@ -667,7 +694,7 @@ export const DetailedReservation = () => {
             <>
               <button
                 id="amend-booking-btn"
-                onClick={() => navigate(`/reservations/amend?id=${resvNo}`)}
+                onClick={() => navigate(`/app/reservations/amend?id=${resvNo}`)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[11px] rounded tracking-wider flex items-center space-x-1.5 transition-colors cursor-pointer"
               >
                 <FileEdit className="w-4 h-4 text-white" />
@@ -703,7 +730,7 @@ export const DetailedReservation = () => {
             <>
               <button
                 id="amend-booking-checked-in-btn"
-                onClick={() => navigate(`/reservations/amend?id=${resvNo}`)}
+                onClick={() => navigate(`/app/reservations/amend?id=${resvNo}`)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[11px] rounded tracking-wider flex items-center space-x-1.5 transition-colors cursor-pointer"
               >
                 <FileEdit className="w-4 h-4 text-white" />
@@ -774,6 +801,7 @@ export const DetailedReservation = () => {
       />
 
       </div>
+      )} {/* end showAdvanced */}
     </PageWrapper>
   );
 };
