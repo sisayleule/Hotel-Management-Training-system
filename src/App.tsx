@@ -40,6 +40,7 @@ import TableSelection from "./pages/waiter/TableSelection.jsx";
 import MenuItems from "./pages/waiter/MenuItems.jsx";
 import { ProtectedRoute as RBACProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
 import { PERMISSIONS } from "./config/rbac.js";
+import ChangePassword from "./pages/ChangePassword.jsx";
 
 // Route Guard for Authenticated Pages
 const ProtectedRoute = ({ children }) => {
@@ -105,6 +106,16 @@ export default function App() {
             <PublicRoute>
               <Register />
             </PublicRoute>
+          }
+        />
+
+        {/* Forced password change — outside all app layouts, needs Supabase auth only */}
+        <Route
+          path="/change-password"
+          element={
+            <RBACProtectedRoute>
+              <ChangePassword />
+            </RBACProtectedRoute>
           }
         />
 

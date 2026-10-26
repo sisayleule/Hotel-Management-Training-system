@@ -44,7 +44,7 @@ export const ProtectedRoute = ({ children, requiredPermissions = [], requireRole
   const location = useLocation();
   const getNavConfig = useRoleStore((state) => state.getNavConfig);
   const [signingOut, setSigningOut] = useState(false);
-  
+
   // Handle mid-session status changes (approved → banned/disabled/deleted)
   useEffect(() => {
     if (profile?.status !== 'approved' && !signingOut && !loading) {
@@ -120,6 +120,12 @@ export const ProtectedRoute = ({ children, requiredPermissions = [], requireRole
     />;
   }
   
+  // Force password change: redirect to /change-password if flag is set,
+  // but only when not already on that page (prevents redirect loop).
+  if (profile?.must_change_password === true && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
+  }
+
   // Check auth role if required (admin/dept_head/student)
   if (requireRole && profile?.role !== requireRole) {
     toast.error('Access Denied: Insufficient privileges');

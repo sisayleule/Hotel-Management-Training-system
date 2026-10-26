@@ -235,12 +235,16 @@ export const DashboardSection = () => {
                 >
                   {/* Action Icon */}
                   <div className={`flex-shrink-0 p-2 rounded-full ${
-                    activity.action === 'approved' 
-                      ? 'bg-green-100' 
+                    activity.action === 'approved'
+                      ? 'bg-green-100'
+                      : activity.action === 'password_reset'
+                      ? 'bg-blue-100'
                       : 'bg-red-100'
                   }`}>
                     {activity.action === 'approved' ? (
                       <CheckCircle className="w-4 h-4 text-green-600" />
+                    ) : activity.action === 'password_reset' ? (
+                      <Activity className="w-4 h-4 text-blue-600" />
                     ) : (
                       <XCircle className="w-4 h-4 text-red-600" />
                     )}
@@ -252,13 +256,22 @@ export const DashboardSection = () => {
                       <span className="font-semibold">
                         {activity.student?.full_name || 'Unknown Student'}
                       </span>
-                      {' '}was{' '}
+                      {' — '}
                       <span className={`font-semibold ${
-                        activity.action === 'approved' 
-                          ? 'text-green-600' 
+                        activity.action === 'approved'
+                          ? 'text-green-600'
+                          : activity.action === 'password_reset'
+                          ? 'text-blue-600'
                           : 'text-red-600'
                       }`}>
-                        {activity.action}
+                        {activity.action === 'approved'   ? 'Approved'
+                         : activity.action === 'rejected'  ? 'Rejected'
+                         : activity.action === 'banned'    ? 'Banned'
+                         : activity.action === 'unbanned'  ? 'Unbanned'
+                         : activity.action === 'deleted'   ? 'Deleted'
+                         : activity.action === 'disabled'  ? 'Disabled'
+                         : activity.action === 'password_reset' ? 'Password reset'
+                         : activity.action}
                       </span>
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">

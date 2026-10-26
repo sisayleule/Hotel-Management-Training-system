@@ -318,13 +318,22 @@ export const AuthProvider = ({ children }) => {
     useHotelStore.setState({ currentUser: null });
   };
 
+  // Exposed for components that need to pull a fresh profile without a
+  // full sign-in cycle (e.g. ChangePassword clearing must_change_password).
+  const refreshProfile = async () => {
+    if (user?.id) {
+      await fetchProfile(user.id, 'MANUAL_REFRESH');
+    }
+  };
+
   const value = {
     user,
     profile,
     loading, // This stays true until status check is complete
     profileError,
     authStatusRejection, // NEW: Rejection info for SupabaseLogin to display
-    signOut
+    signOut,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

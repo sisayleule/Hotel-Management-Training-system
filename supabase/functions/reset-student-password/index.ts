@@ -141,11 +141,9 @@ serve(async (req) => {
     }
 
     // ── 10. Log the action in approval_log ────────────────────────────────
-    // Use 'approved' action type (existing enum values) — closest available.
-    // The reason field records it as a password reset.
     await supabaseAdmin.from('approval_log').insert({
       student_id,
-      action:   'approved',        // reuse existing enum value
+      action:   'password_reset',
       reason:   'Password reset by department head',
       actor_id: caller.id,
     });

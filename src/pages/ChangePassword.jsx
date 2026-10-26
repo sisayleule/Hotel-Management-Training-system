@@ -21,7 +21,7 @@ const strengthColor = ['', 'bg-red-500', 'bg-orange-500', 'bg-yellow-400', 'bg-b
 
 export const ChangePassword = () => {
   const navigate = useNavigate();
-  const { user, profile } = useSupabaseAuth();
+  const { user, profile, refreshProfile } = useSupabaseAuth();
 
   const [newPassword,     setNewPassword]     = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -74,6 +74,10 @@ export const ChangePassword = () => {
         duration: 4000,
         icon: '🔐',
       });
+
+      // Re-fetch profile so must_change_password is false in AuthContext state
+      // before navigating — this prevents ProtectedRoute from bouncing us back.
+      await refreshProfile();
 
       // Redirect based on role
       const role = profile?.role;
