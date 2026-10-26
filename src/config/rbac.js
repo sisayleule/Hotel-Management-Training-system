@@ -130,7 +130,8 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.CHECKIN_PERFORM,
     PERMISSIONS.CHECKOUT_PERFORM,
     PERMISSIONS.ROOMS_VIEW,
-    PERMISSIONS.ROOMS_CHANGE_STATUS,
+    // ROOMS_CHANGE_STATUS intentionally removed: front_office may not manually
+    // change room status. Rooms become dirty automatically after check-out.
     PERMISSIONS.GUESTS_VIEW,
     PERMISSIONS.GUESTS_EDIT,
     PERMISSIONS.BILLING_POST_CHARGES,

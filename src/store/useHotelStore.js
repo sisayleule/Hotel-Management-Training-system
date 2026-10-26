@@ -12,6 +12,8 @@ import {
   checkInReservation as svcCheckIn,
   checkOutReservation as svcCheckOut,
 } from "../services/reservationService.js";
+import { useRoleStore } from "./useRoleStore.js";
+import { ROLE_PERMISSIONS, PERMISSIONS } from "../config/rbac.js";
 
 /**
  * getAssignedRoom — single source of truth for "which room belongs to this reservation".
@@ -103,18 +105,35 @@ export const useHotelStore = create(
   addMaintenanceRequest: (req) => set((state) => ({ maintenanceRequests: [...state.maintenanceRequests, req] })),
 
   // Actions
-  updateRoomStatus: (roomNo, newStatus, guestName = "", reservationNo = "") => set((state) => ({
-    rooms: state.rooms.map((room) =>
-      room.room_no === roomNo
-        ? {
-            ...room,
-            status: newStatus,
-            guest_name: (newStatus === "vacant_clean" || newStatus === "dirty" || newStatus === "out_of_order" || newStatus === "out_of_service") ? "" : guestName || room.guest_name,
-            reservation_no: (newStatus === "vacant_clean" || newStatus === "dirty" || newStatus === "out_of_order" || newStatus === "out_of_service") ? "" : reservationNo || room.reservation_no
-          }
-        : room
-    )
-  })),
+  updateRoomStatus: (roomNo, newStatus, guestName = "", reservationNo = "") => {
+    // Guard: only roles with ROOMS_CHANGE_STATUS or HOUSEKEEPING_UPDATE_STATUS
+    // may manually change room status. performCheckOut sets dirty automatically
+    // and is not gated here.
+    const role = useRoleStore.getState().currentRole;
+    const perms = ROLE_PERMISSIONS[role] || [];
+    const hasWildcard = perms.includes("*");
+    const canChange =
+      hasWildcard ||
+      perms.includes(PERMISSIONS.ROOMS_CHANGE_STATUS) ||
+      perms.includes(PERMISSIONS.HOUSEKEEPING_UPDATE_STATUS);
+
+    if (!canChange) {
+      return; // silently reject — UI already hides the buttons
+    }
+
+    set((state) => ({
+      rooms: state.rooms.map((room) =>
+        room.room_no === roomNo
+          ? {
+              ...room,
+              status: newStatus,
+              guest_name: (newStatus === "vacant_clean" || newStatus === "dirty" || newStatus === "out_of_order" || newStatus === "out_of_service") ? "" : guestName || room.guest_name,
+              reservation_no: (newStatus === "vacant_clean" || newStatus === "dirty" || newStatus === "out_of_order" || newStatus === "out_of_service") ? "" : reservationNo || room.reservation_no
+            }
+          : room
+      )
+    }));
+  },
 
   createReservation: (data) => {
     const reservationNo = `RES${String(get().reservations.length + 1).padStart(3, "0")}`;

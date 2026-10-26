@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useHotelStore } from "../../store/useHotelStore.js";
+import { usePermissions } from "../../hooks/usePermissions.js";
+import { PERMISSIONS } from "../../config/rbac.js";
 import { BottomSheet } from "../ui/BottomSheet.jsx";
 import toast from "react-hot-toast";
 import {
@@ -42,15 +44,22 @@ import {
  * @param {Room} props.room
  */
 export const RoomDetailSheet = ({ isOpen, onClose, room }) => {
+  // ── All hooks at the top — no early returns before this block ─────────────
   const navigate = useNavigate();
   const updateRoomStatus = useHotelStore((state) => state.updateRoomStatus);
   const reservations = useHotelStore((state) => state.reservations);
   const currentUser = useHotelStore((state) => state.currentUser);
+  const { can } = usePermissions();
 
-  // Loading state for each button action to show spinner
   const [loadingAction, setLoadingAction] = useState(null);
+  // ──────────────────────────────────────────────────────────────────────────
 
   if (!room) return null;
+
+  // Permission gate: can this user manually change room status?
+  const canChangeStatus =
+    can(PERMISSIONS.ROOMS_CHANGE_STATUS) ||
+    can(PERMISSIONS.HOUSEKEEPING_UPDATE_STATUS);
 
   // Find associated reservation if occupied or has active booking
   const reservation = reservations.find(
@@ -109,279 +118,317 @@ export const RoomDetailSheet = ({ isOpen, onClose, room }) => {
     }, 500);
   };
 
-  // Rendering the dynamic action buttons based on status
+  const isLd = (act) => loadingAction === act;
+  const spinner = (
+    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+  );
+
+  // Rendering the dynamic action buttons based on status and permissions.
+  // Status-change buttons are only rendered when canChangeStatus is true.
+  // Always-visible: Create Reservation, View Reservation, Check Out Guest,
+  //                 Post Charge, Add Note.
   const renderActionButtons = () => {
-    const isLd = (act) => loadingAction === act;
-    const spinner = (
-      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-    );
+    // Track whether any button was rendered for the "no actions" note
+    let hasStatusButtons = false;
+    let hasAlwaysButtons = false;
+
+    const buttons = [];
 
     switch (room.status) {
-      case "vacant_clean":
-        return (
-          <>
-            {/* Create Reservation */}
-            <button
-              id="action-create-res"
-              onClick={() =>
-                triggerAction("create_res", null, "", () => {
-                  navigate(`/app/reservations/new?roomNo=${room.room_no}`);
-                })
-              }
-              className="w-full h-12 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
-            >
-              {isLd("create_res") ? spinner : <Bed className="w-5 h-5" />}
-              <span>Create Reservation</span>
-            </button>
+      case "vacant_clean": {
+        // Always visible
+        hasAlwaysButtons = true;
+        buttons.push(
+          <button
+            key="create_res"
+            id="action-create-res"
+            onClick={() =>
+              triggerAction("create_res", null, "", () => {
+                navigate(`/app/reservations/new?roomNo=${room.room_no}`);
+              })
+            }
+            className="w-full h-12 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
+          >
+            {isLd("create_res") ? spinner : <Bed className="w-5 h-5" />}
+            <span>Create Reservation</span>
+          </button>
+        );
 
-            {/* Mark Out of Order */}
+        if (canChangeStatus) {
+          hasStatusButtons = true;
+          buttons.push(
             <button
+              key="mark_ooo"
               id="action-mark-ooo"
               onClick={() =>
-                triggerAction(
-                  "mark_ooo",
-                  "out_of_order",
-                  `Room ${room.room_no} marked as Out of Order ✓`
-                )
+                triggerAction("mark_ooo", "out_of_order", `Room ${room.room_no} marked as Out of Order ✓`)
               }
               className="w-full h-12 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
             >
               {isLd("mark_ooo") ? spinner : <Wrench className="w-5 h-5" />}
               <span>Mark Out of Order</span>
-            </button>
-
-            {/* Mark Dirty */}
+            </button>,
             <button
+              key="mark_dirty"
               id="action-mark-dirty-action"
               onClick={() =>
-                triggerAction(
-                  "mark_dirty",
-                  "dirty",
-                  `Room ${room.room_no} marked as Dirty ✓`
-                )
+                triggerAction("mark_dirty", "dirty", `Room ${room.room_no} marked as Dirty ✓`)
               }
               className="w-full h-12 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
             >
               {isLd("mark_dirty") ? spinner : <AlertTriangle className="w-5 h-5" />}
               <span>Mark Dirty</span>
             </button>
-          </>
-        );
+          );
+        }
+        break;
+      }
 
       case "dirty":
-      case "vacant_dirty":
-        return (
-          <>
-            {/* Mark Clean */}
+      case "vacant_dirty": {
+        // Always: Create Reservation
+        hasAlwaysButtons = true;
+        buttons.push(
+          <button
+            key="create_res"
+            id="action-create-res"
+            onClick={() =>
+              triggerAction("create_res", null, "", () => {
+                navigate(`/app/reservations/new?roomNo=${room.room_no}`);
+              })
+            }
+            className="w-full h-12 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
+          >
+            {isLd("create_res") ? spinner : <Bed className="w-5 h-5" />}
+            <span>Create Reservation</span>
+          </button>
+        );
+
+        if (canChangeStatus) {
+          hasStatusButtons = true;
+          buttons.unshift(
+            // Mark Clean goes first
             <button
+              key="mark_clean"
               id="action-mark-clean"
               onClick={() =>
-                triggerAction(
-                  "mark_clean",
-                  "vacant_clean",
-                  `Room ${room.room_no} marked as Clean ✓`
-                )
+                triggerAction("mark_clean", "vacant_clean", `Room ${room.room_no} marked as Clean ✓`)
               }
               className="w-full h-12 rounded-lg bg-green-500 hover:bg-green-600 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
             >
               {isLd("mark_clean") ? spinner : <Check className="w-5 h-5" />}
               <span>Mark Clean</span>
             </button>
-
-            {/* Create Reservation */}
+          );
+          buttons.push(
             <button
-              id="action-create-res"
-              onClick={() =>
-                triggerAction("create_res", null, "", () => {
-                  navigate(`/app/reservations/new?roomNo=${room.room_no}`);
-                })
-              }
-              className="w-full h-12 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
-            >
-              {isLd("create_res") ? spinner : <Bed className="w-5 h-5" />}
-              <span>Create Reservation</span>
-            </button>
-
-            {/* Mark Out of Order */}
-            <button
+              key="mark_ooo"
               id="action-mark-ooo"
               onClick={() =>
-                triggerAction(
-                  "mark_ooo",
-                  "out_of_order",
-                  `Room ${room.room_no} marked as Out of Order ✓`
-                )
+                triggerAction("mark_ooo", "out_of_order", `Room ${room.room_no} marked as Out of Order ✓`)
               }
               className="w-full h-12 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
             >
               {isLd("mark_ooo") ? spinner : <Wrench className="w-5 h-5" />}
               <span>Mark Out of Order</span>
             </button>
-          </>
+          );
+        }
+        break;
+      }
+
+      case "occupied": {
+        // Always: Check Out Guest, Post Charge
+        hasAlwaysButtons = true;
+        buttons.push(
+          <button
+            key="checkout"
+            id="action-checkout"
+            onClick={() =>
+              triggerAction("checkout", null, "", () => {
+                if (room.reservation_no) {
+                  navigate(`/app/checkout?id=${room.reservation_no}`);
+                } else {
+                  toast.error("No reservation linked to this room. Please locate the reservation manually in Check-Out.");
+                  navigate("/app/checkout");
+                }
+              })
+            }
+            className="w-full h-12 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
+          >
+            {isLd("checkout") ? spinner : <Trash2 className="w-5 h-5" />}
+            <span>Check Out Guest</span>
+          </button>,
+          <button
+            key="post_charge"
+            id="action-post-charge"
+            onClick={() =>
+              triggerAction("post_charge", null, "", () => {
+                navigate(`/app/cashiering?roomNo=${room.room_no}`);
+              })
+            }
+            className="w-full h-12 rounded-lg bg-ids-header hover:bg-ids-sidebar text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
+          >
+            {isLd("post_charge") ? spinner : <CreditCard className="w-5 h-5" />}
+            <span>Post Charge</span>
+          </button>
         );
 
-      case "occupied":
-        return (
-          <>
-            {/* Check Out Guest — delegates to dedicated Check-Out module */}
+        if (canChangeStatus) {
+          hasStatusButtons = true;
+          buttons.push(
             <button
-              id="action-checkout"
-              onClick={() =>
-                triggerAction("checkout", null, "", () => {
-                  if (room.reservation_no) {
-                    navigate(`/app/checkout?id=${room.reservation_no}`);
-                  } else {
-                    toast.error("No reservation linked to this room. Please locate the reservation manually in Check-Out.");
-                    navigate("/app/checkout");
-                  }
-                })
-              }
-              className="w-full h-12 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
-            >
-              {isLd("checkout") ? spinner : <Trash2 className="w-5 h-5" />}
-              <span>Check Out Guest</span>
-            </button>
-
-            {/* Post Charge */}
-            <button
-              id="action-post-charge"
-              onClick={() =>
-                triggerAction("post_charge", null, "", () => {
-                  navigate(`/app/cashiering?roomNo=${room.room_no}`);
-                })
-              }
-              className="w-full h-12 rounded-lg bg-ids-header hover:bg-ids-sidebar text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
-            >
-              {isLd("post_charge") ? spinner : <CreditCard className="w-5 h-5" />}
-              <span>Post Charge</span>
-            </button>
-
-            {/* Request Housekeeping */}
-            <button
+              key="req_hk"
               id="action-request-hk"
               onClick={() =>
-                triggerAction(
-                  "req_hk",
-                  "dirty",
-                  `Housekeeping requested for Room ${room.room_no} ✓`
-                )
+                triggerAction("req_hk", "dirty", `Housekeeping requested for Room ${room.room_no} ✓`)
               }
               className="w-full h-12 rounded-lg bg-orange-400 hover:bg-orange-500 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
             >
               {isLd("req_hk") ? spinner : <Clock className="w-5 h-5" />}
               <span>Request Housekeeping</span>
             </button>
-          </>
-        );
+          );
+        }
+        break;
+      }
 
       case "out_of_order":
-      case "not_available":
-        return (
-          <>
-            {/* Mark Available */}
+      case "not_available": {
+        // Always: Add Note
+        hasAlwaysButtons = true;
+        buttons.push(
+          <button
+            key="add_note"
+            id="action-add-note"
+            onClick={() => {
+              toast.success("Maintenance note added!");
+              onClose();
+            }}
+            className="w-full h-12 rounded-lg bg-gray-600 hover:bg-gray-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
+          >
+            <FileText className="w-5 h-5" />
+            <span>Add Note</span>
+          </button>
+        );
+
+        if (canChangeStatus) {
+          hasStatusButtons = true;
+          buttons.unshift(
             <button
+              key="mark_clean"
               id="action-mark-clean"
               onClick={() =>
-                triggerAction(
-                  "mark_clean",
-                  "vacant_clean",
-                  `Room ${room.room_no} marked as Available/Clean ✓`
-                )
+                triggerAction("mark_clean", "vacant_clean", `Room ${room.room_no} marked as Available/Clean ✓`)
               }
               className="w-full h-12 rounded-lg bg-green-500 hover:bg-green-600 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
             >
               {isLd("mark_clean") ? spinner : <Check className="w-5 h-5" />}
               <span>Mark Available (Clean)</span>
             </button>
+          );
+        }
+        break;
+      }
 
-            {/* Add Note */}
-            <button
-              id="action-add-note"
-              onClick={() => {
-                toast.success("Maintenance note added!");
-                onClose();
-              }}
-              className="w-full h-12 rounded-lg bg-gray-600 hover:bg-gray-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
-            >
-              <FileText className="w-5 h-5" />
-              <span>Add Note</span>
-            </button>
-          </>
+      case "reservation": {
+        // Always: Check In Guest, View Reservation
+        hasAlwaysButtons = true;
+        buttons.push(
+          <button
+            key="checkin"
+            id="action-checkin"
+            onClick={() =>
+              triggerAction("checkin", null, "", () => {
+                navigate(
+                  room.reservation_no
+                    ? `/app/checkin?id=${room.reservation_no}`
+                    : "/app/checkin"
+                );
+              })
+            }
+            className="w-full h-12 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
+          >
+            {isLd("checkin") ? spinner : <PlusCircle className="w-5 h-5" />}
+            <span>Check In Guest</span>
+          </button>,
+          <button
+            key="view_res"
+            id="action-view-res"
+            onClick={() =>
+              triggerAction("view_res", null, "", () => {
+                if (room.reservation_no) {
+                  navigate(`/app/reservations/${room.reservation_no}`);
+                } else {
+                  navigate(`/app/reservations`);
+                }
+              })
+            }
+            className="w-full h-12 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
+          >
+            <FileText className="w-5 h-5" />
+            <span>View Reservation</span>
+          </button>
         );
 
-      case "reservation":
-        return (
-          <>
-            {/* Check In Guest — delegates to dedicated Check-In module */}
+        if (canChangeStatus) {
+          hasStatusButtons = true;
+          buttons.push(
             <button
-              id="action-checkin"
-              onClick={() =>
-                triggerAction("checkin", null, "", () => {
-                  navigate(
-                    room.reservation_no
-                      ? `/app/checkin?id=${room.reservation_no}`
-                      : "/app/checkin"
-                  );
-                })
-              }
-              className="w-full h-12 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
-            >
-              {isLd("checkin") ? spinner : <PlusCircle className="w-5 h-5" />}
-              <span>Check In Guest</span>
-            </button>
-
-            {/* View Reservation */}
-            <button
-              id="action-view-res"
-              onClick={() =>
-                triggerAction("view_res", null, "", () => {
-                  if (room.reservation_no) {
-                    navigate(`/app/reservations/${room.reservation_no}`);
-                  } else {
-                    navigate(`/app/reservations`);
-                  }
-                })
-              }
-              className="w-full h-12 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
-            >
-              <FileText className="w-5 h-5" />
-              <span>View Reservation</span>
-            </button>
-
-            {/* Cancel Reservation */}
-            <button
+              key="cancel_res"
               id="action-cancel-res"
               onClick={() =>
-                triggerAction(
-                  "cancel_res",
-                  "vacant_clean",
-                  `Reservation cancelled for Room ${room.room_no} ✓`
-                )
+                triggerAction("cancel_res", "vacant_clean", `Reservation cancelled for Room ${room.room_no} ✓`)
               }
               className="w-full h-12 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
             >
               {isLd("cancel_res") ? spinner : <Trash2 className="w-5 h-5" />}
               <span>Cancel Reservation</span>
             </button>
-          </>
-        );
+          );
+        }
+        break;
+      }
 
-      default:
-        return (
-          <button
-            onClick={() =>
-              triggerAction(
-                "mark_clean",
-                "vacant_clean",
-                `Room ${room.room_no} reset to clean ✓`
-              )
-            }
-            className="w-full h-12 rounded-lg bg-gray-500 hover:bg-gray-600 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
-          >
-            Reset to Available
-          </button>
-        );
+      default: {
+        if (canChangeStatus) {
+          hasStatusButtons = true;
+          buttons.push(
+            <button
+              key="reset"
+              onClick={() =>
+                triggerAction("mark_clean", "vacant_clean", `Room ${room.room_no} reset to clean ✓`)
+              }
+              className="w-full h-12 rounded-lg bg-gray-500 hover:bg-gray-600 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition-transform active:scale-98 cursor-pointer"
+            >
+              Reset to Available
+            </button>
+          );
+        }
+        break;
+      }
     }
+
+    // If no buttons at all, show the permission note
+    if (!hasAlwaysButtons && !hasStatusButtons) {
+      return (
+        <p className="text-xs text-gray-400 font-medium text-center py-2">
+          Only housekeeping can change this room's status.
+        </p>
+      );
+    }
+
+    // If we have always-buttons but no status-change buttons, add the note
+    // so the user knows why status buttons are absent
+    if (hasAlwaysButtons && !hasStatusButtons && !canChangeStatus) {
+      buttons.push(
+        <p key="no-status-note" className="text-xs text-gray-400 font-medium text-center py-1">
+          Only housekeeping can change this room's status.
+        </p>
+      );
+    }
+
+    return buttons;
   };
 
   // Humanized dates for screenshot style display
